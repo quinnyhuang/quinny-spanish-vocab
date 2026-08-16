@@ -143,10 +143,15 @@ const LOCAL_STORAGE_KEY = "esVocabApp.v1";
 // App info / version (shown on the "說明" screen)
 // ---------------------------------------------------------------------------
 const APP_MAKER = "Quinny";
-const APP_VERSION = "v4.1.0";
+const APP_VERSION = "v4.2.0";
 const APP_UPDATED = "2026-08-16";
 // Add a new entry to the TOP of this array whenever you ship a new version.
 const CHANGELOG = [
+  {
+    version: "v4.2.0",
+    date: "2026-08-16",
+    notes: "新增「英文相似字」提示:當西班牙文單字拼字跟英文很接近時(例如 hospital、familia),學習卡片上會顯示小小的「≈ 英文」提示當記憶捷徑,目前已標註 70 個現有單字;不是每個字都有,只有拼字真的接近才會顯示。",
+  },
   {
     version: "v4.1.0",
     date: "2026-08-16",
@@ -188,7 +193,7 @@ const WORD_BANK = {
     { es: "bueno", pos: "adj.", zh: "好的", ex: "Este café está muy bueno.", exZh: "這杯咖啡很好喝。" },
     { es: "día", gender: "m", plural: "días", pos: "n.", zh: "天;日子", ex: "¡Que tengas un buen día!", exZh: "祝你有美好的一天!" },
     { es: "trabajar", pos: "v.", zh: "工作", ex: "Trabajo en una oficina.", exZh: "我在辦公室工作。" },
-    { es: "familia", gender: "f", plural: "familias", pos: "n.", zh: "家庭", ex: "Mi familia es muy grande.", exZh: "我的家庭很大。" },
+    { es: "familia", en: "family", gender: "f", plural: "familias", pos: "n.", zh: "家庭", ex: "Mi familia es muy grande.", exZh: "我的家庭很大。" },
     { es: "tiempo", gender: "m", plural: "tiempos", pos: "n.", zh: "時間;天氣", ex: "No tengo mucho tiempo.", exZh: "我沒有太多時間。" },
     { es: "libro", gender: "m", plural: "libros", pos: "n.", zh: "書", ex: "Estoy leyendo un libro nuevo.", exZh: "我正在讀一本新書。" },
     { es: "mesa", gender: "f", plural: "mesas", pos: "n.", zh: "桌子", ex: "La mesa está en la cocina.", exZh: "桌子在廚房裡。" },
@@ -208,41 +213,41 @@ const WORD_BANK = {
     { es: "deporte", gender: "m", plural: "deportes", pos: "n.", zh: "運動", ex: "¿Practicas algún deporte?", exZh: "你有在做什麼運動嗎?" },
     { es: "aeropuerto", gender: "m", plural: "aeropuertos", pos: "n.", zh: "機場", ex: "Llegamos al aeropuerto temprano.", exZh: "我們提早到了機場。" },
     { es: "cansado", pos: "adj.", zh: "疲累的", ex: "Estoy muy cansado hoy.", exZh: "我今天很累。" },
-    { es: "oficina", gender: "f", plural: "oficinas", pos: "n.", zh: "辦公室", ex: "La oficina está cerrada los domingos.", exZh: "辦公室週日不開。" },
-    { es: "reunión", gender: "f", plural: "reuniones", pos: "n.", zh: "會議", ex: "Tenemos una reunión a las tres.", exZh: "我們三點有個會議。" },
+    { es: "oficina", en: "office", gender: "f", plural: "oficinas", pos: "n.", zh: "辦公室", ex: "La oficina está cerrada los domingos.", exZh: "辦公室週日不開。" },
+    { es: "reunión", en: "reunion", gender: "f", plural: "reuniones", pos: "n.", zh: "會議", ex: "Tenemos una reunión a las tres.", exZh: "我們三點有個會議。" },
     { es: "cumpleaños", gender: "m", plural: "cumpleaños", pos: "n.", zh: "生日", note: "單複數同形", ex: "¡Feliz cumpleaños!", exZh: "生日快樂!" },
     { es: "paisaje", gender: "m", plural: "paisajes", pos: "n.", zh: "風景", ex: "El paisaje desde aquí es hermoso.", exZh: "從這裡看的風景很美。" },
-    { es: "costumbre", gender: "f", plural: "costumbres", pos: "n.", zh: "習慣;習俗", ex: "Es una costumbre local.", exZh: "這是當地的習俗。" },
+    { es: "costumbre", en: "custom", gender: "f", plural: "costumbres", pos: "n.", zh: "習慣;習俗", ex: "Es una costumbre local.", exZh: "這是當地的習俗。" },
     { es: "ciudad", gender: "f", plural: "ciudades", pos: "n.", zh: "城市", ex: "Vivo en una ciudad grande.", exZh: "我住在一個大城市。" },
     { es: "calle", gender: "f", plural: "calles", pos: "n.", zh: "街道", ex: "La tienda está en esta calle.", exZh: "那間店在這條街上。" },
     { es: "tienda", gender: "f", plural: "tiendas", pos: "n.", zh: "商店", ex: "Esa tienda vende ropa.", exZh: "那間店賣衣服。" },
     { es: "dinero", gender: "m", pos: "n.", zh: "錢", note: "通常不用複數", ex: "No tengo suficiente dinero.", exZh: "我錢不夠。" },
-    { es: "banco", gender: "m", plural: "bancos", pos: "n.", zh: "銀行;長椅", ex: "Voy al banco a las diez.", exZh: "我十點要去銀行。" },
-    { es: "hospital", gender: "m", plural: "hospitales", pos: "n.", zh: "醫院", ex: "El hospital está cerca de aquí.", exZh: "醫院離這裡很近。" },
-    { es: "museo", gender: "m", plural: "museos", pos: "n.", zh: "博物館", ex: "Visitamos un museo de arte.", exZh: "我們參觀了一間美術館。" },
-    { es: "parque", gender: "m", plural: "parques", pos: "n.", zh: "公園", ex: "Los niños corren en el parque.", exZh: "孩子們在公園跑步。" },
+    { es: "banco", en: "bank", gender: "m", plural: "bancos", pos: "n.", zh: "銀行;長椅", ex: "Voy al banco a las diez.", exZh: "我十點要去銀行。" },
+    { es: "hospital", en: "hospital", gender: "m", plural: "hospitales", pos: "n.", zh: "醫院", ex: "El hospital está cerca de aquí.", exZh: "醫院離這裡很近。" },
+    { es: "museo", en: "museum", gender: "m", plural: "museos", pos: "n.", zh: "博物館", ex: "Visitamos un museo de arte.", exZh: "我們參觀了一間美術館。" },
+    { es: "parque", en: "park", gender: "m", plural: "parques", pos: "n.", zh: "公園", ex: "Los niños corren en el parque.", exZh: "孩子們在公園跑步。" },
   ],
   B1: [
     { es: "sin embargo", pos: "conj.", zh: "然而", ex: "Sin embargo, no llegamos a tiempo.", exZh: "然而,我們沒有準時到。" },
     { es: "a pesar de", pos: "loc.", zh: "儘管", ex: "A pesar de la lluvia, salimos.", exZh: "儘管下雨,我們還是出門了。" },
     { es: "lograr", pos: "v.", zh: "達成;實現", ex: "Logró terminar el proyecto a tiempo.", exZh: "他準時完成了這個專案。" },
     { es: "superar", pos: "v.", zh: "克服;超越", ex: "Tuvo que superar muchos obstáculos.", exZh: "他必須克服許多阻礙。" },
-    { es: "sospechar", pos: "v.", zh: "懷疑", ex: "Sospecho que algo no está bien.", exZh: "我懷疑有些事情不對勁。" },
-    { es: "actitud", gender: "f", plural: "actitudes", pos: "n.", zh: "態度", ex: "Tiene una actitud muy positiva.", exZh: "他的態度很積極。" },
+    { es: "sospechar", en: "suspect", pos: "v.", zh: "懷疑", ex: "Sospecho que algo no está bien.", exZh: "我懷疑有些事情不對勁。" },
+    { es: "actitud", en: "attitude", gender: "f", plural: "actitudes", pos: "n.", zh: "態度", ex: "Tiene una actitud muy positiva.", exZh: "他的態度很積極。" },
     { es: "con respecto a", pos: "loc.", zh: "關於", ex: "Con respecto a tu pregunta...", exZh: "關於你的問題..." },
     { es: "disponible", pos: "adj.", zh: "可用的;有空的", ex: "¿Está disponible mañana?", exZh: "你明天有空嗎?" },
     { es: "exigir", pos: "v.", zh: "要求", ex: "El jefe exige mucho esfuerzo.", exZh: "老闆要求很高的努力。" },
     { es: "fomentar", pos: "v.", zh: "促進;鼓勵", ex: "Quieren fomentar la lectura.", exZh: "他們想推廣閱讀。" },
     { es: "imprescindible", pos: "adj.", zh: "不可或缺的", ex: "El agua es imprescindible para vivir.", exZh: "水是生存不可或缺的。" },
     { es: "plantear", pos: "v.", zh: "提出(問題、想法)", ex: "Voy a plantear una duda.", exZh: "我要提出一個疑問。" },
-    { es: "decisión", gender: "f", plural: "decisiones", pos: "n.", zh: "決定", ex: "Fue una decisión difícil.", exZh: "那是一個困難的決定。" },
-    { es: "objetivo", gender: "m", plural: "objetivos", pos: "n.", zh: "目標", ex: "Nuestro objetivo es claro.", exZh: "我們的目標很明確。" },
+    { es: "decisión", en: "decision", gender: "f", plural: "decisiones", pos: "n.", zh: "決定", ex: "Fue una decisión difícil.", exZh: "那是一個困難的決定。" },
+    { es: "objetivo", en: "objective", gender: "m", plural: "objetivos", pos: "n.", zh: "目標", ex: "Nuestro objetivo es claro.", exZh: "我們的目標很明確。" },
     { es: "ventaja", gender: "f", plural: "ventajas", pos: "n.", zh: "優點;優勢", ex: "Tiene muchas ventajas.", exZh: "這有很多優點。" },
     { es: "desventaja", gender: "f", plural: "desventajas", pos: "n.", zh: "缺點;劣勢", ex: "Esa es la principal desventaja.", exZh: "那是主要的缺點。" },
-    { es: "consecuencia", gender: "f", plural: "consecuencias", pos: "n.", zh: "後果", ex: "Hay que pensar en las consecuencias.", exZh: "必須考慮後果。" },
+    { es: "consecuencia", en: "consequence", gender: "f", plural: "consecuencias", pos: "n.", zh: "後果", ex: "Hay que pensar en las consecuencias.", exZh: "必須考慮後果。" },
     { es: "propuesta", gender: "f", plural: "propuestas", pos: "n.", zh: "提案;建議", ex: "Presentamos una nueva propuesta.", exZh: "我們提出了一項新提案。" },
-    { es: "obstáculo", gender: "m", plural: "obstáculos", pos: "n.", zh: "阻礙", ex: "Superamos varios obstáculos.", exZh: "我們克服了幾個阻礙。" },
-    { es: "solución", gender: "f", plural: "soluciones", pos: "n.", zh: "解決方案", ex: "Encontramos una buena solución.", exZh: "我們找到了一個好的解決方案。" },
+    { es: "obstáculo", en: "obstacle", gender: "m", plural: "obstáculos", pos: "n.", zh: "阻礙", ex: "Superamos varios obstáculos.", exZh: "我們克服了幾個阻礙。" },
+    { es: "solución", en: "solution", gender: "f", plural: "soluciones", pos: "n.", zh: "解決方案", ex: "Encontramos una buena solución.", exZh: "我們找到了一個好的解決方案。" },
   ],
   B2: [
     { es: "conllevar", pos: "v.", zh: "伴隨帶來", ex: "Este trabajo conlleva mucha responsabilidad.", exZh: "這份工作伴隨著很大的責任。" },
@@ -250,43 +255,43 @@ const WORD_BANK = {
     { es: "suscitar", pos: "v.", zh: "引發", ex: "La noticia suscitó mucho debate.", exZh: "這則新聞引發了很多討論。" },
     { es: "ámbito", gender: "m", plural: "ámbitos", pos: "n.", zh: "範疇;領域", ex: "Trabaja en el ámbito de la salud.", exZh: "他在健康領域工作。" },
     { es: "abordar", pos: "v.", zh: "處理;著手應對", ex: "Debemos abordar el problema pronto.", exZh: "我們必須盡快處理這個問題。" },
-    { es: "controvertido", pos: "adj.", zh: "有爭議的", ex: "Es un tema muy controvertido.", exZh: "這是一個很有爭議的話題。" },
+    { es: "controvertido", en: "controversial", pos: "adj.", zh: "有爭議的", ex: "Es un tema muy controvertido.", exZh: "這是一個很有爭議的話題。" },
     { es: "desencadenar", pos: "v.", zh: "引發;觸發", ex: "El error desencadenó una crisis.", exZh: "這個錯誤引發了一場危機。" },
     { es: "prescindir", pos: "v.", zh: "捨棄;不使用", ex: "No podemos prescindir de tu ayuda.", exZh: "我們無法沒有你的幫忙。" },
     { es: "vislumbrar", pos: "v.", zh: "隱約看見;預見", ex: "Empiezo a vislumbrar una solución.", exZh: "我開始隱約看見一個解決方案。" },
-    { es: "atenuar", pos: "v.", zh: "減輕;緩和", ex: "Esto ayuda a atenuar el dolor.", exZh: "這有助於減輕疼痛。" },
-    { es: "denotar", pos: "v.", zh: "顯示出;表明", ex: "Su tono denota cierta molestia.", exZh: "他的語氣透露出一些不悅。" },
+    { es: "atenuar", en: "attenuate", pos: "v.", zh: "減輕;緩和", ex: "Esto ayuda a atenuar el dolor.", exZh: "這有助於減輕疼痛。" },
+    { es: "denotar", en: "denote", pos: "v.", zh: "顯示出;表明", ex: "Su tono denota cierta molestia.", exZh: "他的語氣透露出一些不悅。" },
     { es: "propiciar", pos: "v.", zh: "促成;有利於", ex: "El clima propicia el turismo.", exZh: "這樣的氣候有利於觀光業。" },
     { es: "enfoque", gender: "m", plural: "enfoques", pos: "n.", zh: "觀點;取向", ex: "Prefiero otro enfoque.", exZh: "我比較喜歡另一種觀點。" },
     { es: "trasfondo", gender: "m", plural: "trasfondos", pos: "n.", zh: "背景;深層原因", ex: "Hay un trasfondo político.", exZh: "背後有政治因素。" },
-    { es: "repercusión", gender: "f", plural: "repercusiones", pos: "n.", zh: "影響;迴響", ex: "Tuvo gran repercusión.", exZh: "這造成了很大的影響。" },
+    { es: "repercusión", en: "repercussion", gender: "f", plural: "repercusiones", pos: "n.", zh: "影響;迴響", ex: "Tuvo gran repercusión.", exZh: "這造成了很大的影響。" },
     { es: "incertidumbre", gender: "f", plural: "incertidumbres", pos: "n.", zh: "不確定性", ex: "Vivimos en tiempos de incertidumbre.", exZh: "我們身處不確定的時代。" },
-    { es: "rigor", gender: "m", pos: "n.", zh: "嚴謹;嚴格", note: "通常不用複數", ex: "Analiza los datos con rigor.", exZh: "他嚴謹地分析資料。" },
+    { es: "rigor", en: "rigor", gender: "m", pos: "n.", zh: "嚴謹;嚴格", note: "通常不用複數", ex: "Analiza los datos con rigor.", exZh: "他嚴謹地分析資料。" },
     { es: "sesgo", gender: "m", plural: "sesgos", pos: "n.", zh: "偏見;偏差", ex: "El estudio tiene un sesgo claro.", exZh: "這項研究有明顯的偏差。" },
     { es: "matiz", gender: "m", plural: "matices", pos: "n.", zh: "細微差別", ex: "Hay un matiz importante aquí.", exZh: "這裡有一個重要的細微差別。" },
-    { es: "premisa", gender: "f", plural: "premisas", pos: "n.", zh: "前提", ex: "Parte de una premisa falsa.", exZh: "這是從一個錯誤的前提出發。" },
+    { es: "premisa", en: "premise", gender: "f", plural: "premisas", pos: "n.", zh: "前提", ex: "Parte de una premisa falsa.", exZh: "這是從一個錯誤的前提出發。" },
   ],
   C1: [
-    { es: "idiosincrasia", gender: "f", plural: "idiosincrasias", pos: "n.", zh: "特質;獨特習性", ex: "Cada país tiene su idiosincrasia.", exZh: "每個國家都有自己的獨特習性。" },
-    { es: "paradigma", gender: "m", plural: "paradigmas", pos: "n.", zh: "典範;範式", ex: "Supuso un cambio de paradigma.", exZh: "這代表了一次典範轉移。" },
+    { es: "idiosincrasia", en: "idiosyncrasy", gender: "f", plural: "idiosincrasias", pos: "n.", zh: "特質;獨特習性", ex: "Cada país tiene su idiosincrasia.", exZh: "每個國家都有自己的獨特習性。" },
+    { es: "paradigma", en: "paradigm", gender: "m", plural: "paradigmas", pos: "n.", zh: "典範;範式", ex: "Supuso un cambio de paradigma.", exZh: "這代表了一次典範轉移。" },
     { es: "subyacente", pos: "adj.", zh: "潛在的;底層的", ex: "Hay un problema subyacente.", exZh: "背後存在一個潛在的問題。" },
-    { es: "inherente", pos: "adj.", zh: "固有的;內在的", ex: "El riesgo es inherente al negocio.", exZh: "風險是這個行業固有的。" },
+    { es: "inherente", en: "inherent", pos: "adj.", zh: "固有的;內在的", ex: "El riesgo es inherente al negocio.", exZh: "風險是這個行業固有的。" },
     { es: "contundente", pos: "adj.", zh: "強而有力的;決定性的", ex: "Dio una respuesta contundente.", exZh: "他給出了一個強而有力的回應。" },
-    { es: "exhaustivo", pos: "adj.", zh: "詳盡的;徹底的", ex: "Hicieron un análisis exhaustivo.", exZh: "他們做了一份詳盡的分析。" },
-    { es: "ambiguo", pos: "adj.", zh: "模稜兩可的", ex: "Su respuesta fue muy ambigua.", exZh: "他的回答很模稜兩可。" },
-    { es: "dilucidar", pos: "v.", zh: "釐清;闡明", ex: "Aún queda mucho por dilucidar.", exZh: "還有很多需要釐清的地方。" },
-    { es: "intrínseco", pos: "adj.", zh: "內在的;本質的", ex: "Tiene un valor intrínseco.", exZh: "它具有內在的價值。" },
-    { es: "meritocracia", gender: "f", plural: "meritocracias", pos: "n.", zh: "菁英制度", ex: "El sistema se basa en la meritocracia.", exZh: "這個制度是以菁英制度為基礎。" },
-    { es: "hegemonía", gender: "f", plural: "hegemonías", pos: "n.", zh: "霸權;主導地位", ex: "Buscan mantener su hegemonía.", exZh: "他們試圖維持自己的主導地位。" },
-    { es: "pragmatismo", gender: "m", pos: "n.", zh: "實用主義", note: "通常不用複數", ex: "Actuó con mucho pragmatismo.", exZh: "他的行事作風非常務實。" },
-    { es: "dicotomía", gender: "f", plural: "dicotomías", pos: "n.", zh: "二分法", ex: "Existe una dicotomía clara.", exZh: "存在著明顯的二分法。" },
-    { es: "controversia", gender: "f", plural: "controversias", pos: "n.", zh: "爭議", ex: "Generó mucha controversia.", exZh: "這引發了很多爭議。" },
+    { es: "exhaustivo", en: "exhaustive", pos: "adj.", zh: "詳盡的;徹底的", ex: "Hicieron un análisis exhaustivo.", exZh: "他們做了一份詳盡的分析。" },
+    { es: "ambiguo", en: "ambiguous", pos: "adj.", zh: "模稜兩可的", ex: "Su respuesta fue muy ambigua.", exZh: "他的回答很模稜兩可。" },
+    { es: "dilucidar", en: "elucidate", pos: "v.", zh: "釐清;闡明", ex: "Aún queda mucho por dilucidar.", exZh: "還有很多需要釐清的地方。" },
+    { es: "intrínseco", en: "intrinsic", pos: "adj.", zh: "內在的;本質的", ex: "Tiene un valor intrínseco.", exZh: "它具有內在的價值。" },
+    { es: "meritocracia", en: "meritocracy", gender: "f", plural: "meritocracias", pos: "n.", zh: "菁英制度", ex: "El sistema se basa en la meritocracia.", exZh: "這個制度是以菁英制度為基礎。" },
+    { es: "hegemonía", en: "hegemony", gender: "f", plural: "hegemonías", pos: "n.", zh: "霸權;主導地位", ex: "Buscan mantener su hegemonía.", exZh: "他們試圖維持自己的主導地位。" },
+    { es: "pragmatismo", en: "pragmatism", gender: "m", pos: "n.", zh: "實用主義", note: "通常不用複數", ex: "Actuó con mucho pragmatismo.", exZh: "他的行事作風非常務實。" },
+    { es: "dicotomía", en: "dichotomy", gender: "f", plural: "dicotomías", pos: "n.", zh: "二分法", ex: "Existe una dicotomía clara.", exZh: "存在著明顯的二分法。" },
+    { es: "controversia", en: "controversy", gender: "f", plural: "controversias", pos: "n.", zh: "爭議", ex: "Generó mucha controversia.", exZh: "這引發了很多爭議。" },
     { es: "disyuntiva", gender: "f", plural: "disyuntivas", pos: "n.", zh: "抉擇;兩難", ex: "Nos enfrenta a una disyuntiva.", exZh: "我們面臨一個抉擇。" },
     { es: "coyuntura", gender: "f", plural: "coyunturas", pos: "n.", zh: "局勢;時局", ex: "La coyuntura económica es difícil.", exZh: "目前的經濟局勢很艱難。" },
-    { es: "trascendencia", gender: "f", pos: "n.", zh: "重要性;深遠影響", note: "通常不用複數", ex: "Es un tema de gran trascendencia.", exZh: "這是個影響深遠的議題。" },
+    { es: "trascendencia", en: "transcendence", gender: "f", pos: "n.", zh: "重要性;深遠影響", note: "通常不用複數", ex: "Es un tema de gran trascendencia.", exZh: "這是個影響深遠的議題。" },
     { es: "injerencia", gender: "f", plural: "injerencias", pos: "n.", zh: "干涉", ex: "Rechazan cualquier injerencia externa.", exZh: "他們拒絕任何外部干涉。" },
-    { es: "heterogeneidad", gender: "f", pos: "n.", zh: "異質性;多樣性", note: "通常不用複數", ex: "Hay gran heterogeneidad cultural.", exZh: "文化上有很大的多樣性。" },
-    { es: "preponderancia", gender: "f", pos: "n.", zh: "優勢;主導地位", note: "通常不用複數", ex: "Tiene preponderancia en el mercado.", exZh: "它在市場上佔有主導地位。" },
+    { es: "heterogeneidad", en: "heterogeneity", gender: "f", pos: "n.", zh: "異質性;多樣性", note: "通常不用複數", ex: "Hay gran heterogeneidad cultural.", exZh: "文化上有很大的多樣性。" },
+    { es: "preponderancia", en: "preponderance", gender: "f", pos: "n.", zh: "優勢;主導地位", note: "通常不用複數", ex: "Tiene preponderancia en el mercado.", exZh: "它在市場上佔有主導地位。" },
   ],
 };
 
@@ -368,65 +373,65 @@ const THEME_BANK = {
   ],
   meses: [
     { es: "enero", gender: "m", plural: "eneros", pos: "n.", zh: "一月", ex: "Enero es muy frío.", exZh: "一月很冷。" },
-    { es: "febrero", gender: "m", plural: "febreros", pos: "n.", zh: "二月", ex: "Mi cumpleaños es en febrero.", exZh: "我的生日在二月。" },
-    { es: "marzo", gender: "m", plural: "marzos", pos: "n.", zh: "三月", ex: "La primavera empieza en marzo.", exZh: "春天在三月開始。" },
-    { es: "abril", gender: "m", plural: "abriles", pos: "n.", zh: "四月", ex: "Llueve mucho en abril.", exZh: "四月常下雨。" },
-    { es: "mayo", gender: "m", plural: "mayos", pos: "n.", zh: "五月", ex: "En mayo hace buen tiempo.", exZh: "五月天氣很好。" },
-    { es: "junio", gender: "m", plural: "junios", pos: "n.", zh: "六月", ex: "Las clases terminan en junio.", exZh: "課程六月結束。" },
-    { es: "julio", gender: "m", plural: "julios", pos: "n.", zh: "七月", ex: "Julio es el mes más caluroso.", exZh: "七月是最熱的月份。" },
-    { es: "agosto", gender: "m", plural: "agostos", pos: "n.", zh: "八月", ex: "Viajamos en agosto.", exZh: "我們八月去旅行。" },
-    { es: "septiembre", gender: "m", plural: "septiembres", pos: "n.", zh: "九月", ex: "El curso empieza en septiembre.", exZh: "課程九月開始。" },
-    { es: "octubre", gender: "m", plural: "octubres", pos: "n.", zh: "十月", ex: "Octubre trae hojas de colores.", exZh: "十月帶來繽紛的落葉。" },
-    { es: "noviembre", gender: "m", plural: "noviembres", pos: "n.", zh: "十一月", ex: "Noviembre es frío y gris.", exZh: "十一月又冷又陰。" },
-    { es: "diciembre", gender: "m", plural: "diciembres", pos: "n.", zh: "十二月", ex: "Diciembre es el mes de fiestas.", exZh: "十二月是節慶月份。" },
+    { es: "febrero", en: "February", gender: "m", plural: "febreros", pos: "n.", zh: "二月", ex: "Mi cumpleaños es en febrero.", exZh: "我的生日在二月。" },
+    { es: "marzo", en: "March", gender: "m", plural: "marzos", pos: "n.", zh: "三月", ex: "La primavera empieza en marzo.", exZh: "春天在三月開始。" },
+    { es: "abril", en: "April", gender: "m", plural: "abriles", pos: "n.", zh: "四月", ex: "Llueve mucho en abril.", exZh: "四月常下雨。" },
+    { es: "mayo", en: "May", gender: "m", plural: "mayos", pos: "n.", zh: "五月", ex: "En mayo hace buen tiempo.", exZh: "五月天氣很好。" },
+    { es: "junio", en: "June", gender: "m", plural: "junios", pos: "n.", zh: "六月", ex: "Las clases terminan en junio.", exZh: "課程六月結束。" },
+    { es: "julio", en: "July", gender: "m", plural: "julios", pos: "n.", zh: "七月", ex: "Julio es el mes más caluroso.", exZh: "七月是最熱的月份。" },
+    { es: "agosto", en: "August", gender: "m", plural: "agostos", pos: "n.", zh: "八月", ex: "Viajamos en agosto.", exZh: "我們八月去旅行。" },
+    { es: "septiembre", en: "September", gender: "m", plural: "septiembres", pos: "n.", zh: "九月", ex: "El curso empieza en septiembre.", exZh: "課程九月開始。" },
+    { es: "octubre", en: "October", gender: "m", plural: "octubres", pos: "n.", zh: "十月", ex: "Octubre trae hojas de colores.", exZh: "十月帶來繽紛的落葉。" },
+    { es: "noviembre", en: "November", gender: "m", plural: "noviembres", pos: "n.", zh: "十一月", ex: "Noviembre es frío y gris.", exZh: "十一月又冷又陰。" },
+    { es: "diciembre", en: "December", gender: "m", plural: "diciembres", pos: "n.", zh: "十二月", ex: "Diciembre es el mes de fiestas.", exZh: "十二月是節慶月份。" },
   ],
   estaciones: [
     { es: "primavera", gender: "f", plural: "primaveras", pos: "n.", zh: "春天", ex: "Las flores salen en primavera.", exZh: "花朵在春天綻放。" },
     { es: "verano", gender: "m", plural: "veranos", pos: "n.", zh: "夏天", ex: "En verano hace mucho calor.", exZh: "夏天非常熱。" },
     { es: "otoño", gender: "m", plural: "otoños", pos: "n.", zh: "秋天", ex: "Las hojas caen en otoño.", exZh: "秋天樹葉會掉落。" },
     { es: "invierno", gender: "m", plural: "inviernos", pos: "n.", zh: "冬天", ex: "Nieva mucho en invierno.", exZh: "冬天常下雪。" },
-    { es: "estación", gender: "f", plural: "estaciones", pos: "n.", zh: "季節;車站", ex: "¿Cuál es tu estación favorita?", exZh: "你最喜歡哪個季節?" },
+    { es: "estación", en: "station", gender: "f", plural: "estaciones", pos: "n.", zh: "季節;車站", ex: "¿Cuál es tu estación favorita?", exZh: "你最喜歡哪個季節?" },
   ],
   comida: [
     { es: "pan", gender: "m", plural: "panes", pos: "n.", zh: "麵包", ex: "Compro pan cada mañana.", exZh: "我每天早上買麵包。" },
     { es: "arroz", gender: "m", plural: "arroces", pos: "n.", zh: "米飯", ex: "El arroz es el plato principal.", exZh: "米飯是主食。" },
     { es: "pollo", gender: "m", plural: "pollos", pos: "n.", zh: "雞肉", ex: "Cenamos pollo asado.", exZh: "我們吃烤雞當晚餐。" },
-    { es: "fruta", gender: "f", plural: "frutas", pos: "n.", zh: "水果", ex: "Como fruta todos los días.", exZh: "我每天吃水果。" },
+    { es: "fruta", en: "fruit", gender: "f", plural: "frutas", pos: "n.", zh: "水果", ex: "Como fruta todos los días.", exZh: "我每天吃水果。" },
     { es: "verdura", gender: "f", plural: "verduras", pos: "n.", zh: "蔬菜", ex: "La verdura es buena para la salud.", exZh: "蔬菜對健康有益。" },
     { es: "carne", gender: "f", plural: "carnes", pos: "n.", zh: "肉", ex: "No como carne roja.", exZh: "我不吃紅肉。" },
     { es: "pescado", gender: "m", plural: "pescados", pos: "n.", zh: "魚(食物)", ex: "El pescado está muy fresco.", exZh: "這條魚很新鮮。" },
     { es: "huevo", gender: "m", plural: "huevos", pos: "n.", zh: "蛋", ex: "Quiero un huevo frito.", exZh: "我要一顆荷包蛋。" },
     { es: "queso", gender: "m", plural: "quesos", pos: "n.", zh: "起司", ex: "Este queso es de España.", exZh: "這個起司來自西班牙。" },
-    { es: "sopa", gender: "f", plural: "sopas", pos: "n.", zh: "湯", ex: "La sopa está caliente.", exZh: "湯很燙。" },
+    { es: "sopa", en: "soup", gender: "f", plural: "sopas", pos: "n.", zh: "湯", ex: "La sopa está caliente.", exZh: "湯很燙。" },
     { es: "postre", gender: "m", plural: "postres", pos: "n.", zh: "甜點", ex: "¿Qué hay de postre?", exZh: "甜點吃什麼?" },
   ],
   paises: [
-    { es: "España", pos: "n.propio", zh: "西班牙", ex: "España está en Europa.", exZh: "西班牙在歐洲。" },
-    { es: "México", pos: "n.propio", zh: "墨西哥", ex: "México tiene mucha historia.", exZh: "墨西哥有豐富的歷史。" },
-    { es: "Argentina", pos: "n.propio", zh: "阿根廷", ex: "Argentina es famosa por el tango.", exZh: "阿根廷以探戈聞名。" },
-    { es: "Colombia", pos: "n.propio", zh: "哥倫比亞", ex: "Colombia produce mucho café.", exZh: "哥倫比亞生產很多咖啡。" },
-    { es: "Perú", pos: "n.propio", zh: "秘魯", ex: "Machu Picchu está en Perú.", exZh: "馬丘比丘位於秘魯。" },
-    { es: "Chile", pos: "n.propio", zh: "智利", ex: "Chile es un país muy largo.", exZh: "智利是個狹長的國家。" },
-    { es: "Cuba", pos: "n.propio", zh: "古巴", ex: "Cuba tiene playas hermosas.", exZh: "古巴有美麗的海灘。" },
-    { es: "Venezuela", pos: "n.propio", zh: "委內瑞拉", ex: "Venezuela está en Sudamérica.", exZh: "委內瑞拉在南美洲。" },
-    { es: "Ecuador", pos: "n.propio", zh: "厄瓜多", ex: "Ecuador tiene las islas Galápagos.", exZh: "厄瓜多擁有加拉巴哥群島。" },
-    { es: "Guatemala", pos: "n.propio", zh: "瓜地馬拉", ex: "Guatemala está en Centroamérica.", exZh: "瓜地馬拉在中美洲。" },
+    { es: "España", en: "Spain", pos: "n.propio", zh: "西班牙", ex: "España está en Europa.", exZh: "西班牙在歐洲。" },
+    { es: "México", en: "Mexico", pos: "n.propio", zh: "墨西哥", ex: "México tiene mucha historia.", exZh: "墨西哥有豐富的歷史。" },
+    { es: "Argentina", en: "Argentina", pos: "n.propio", zh: "阿根廷", ex: "Argentina es famosa por el tango.", exZh: "阿根廷以探戈聞名。" },
+    { es: "Colombia", en: "Colombia", pos: "n.propio", zh: "哥倫比亞", ex: "Colombia produce mucho café.", exZh: "哥倫比亞生產很多咖啡。" },
+    { es: "Perú", en: "Peru", pos: "n.propio", zh: "秘魯", ex: "Machu Picchu está en Perú.", exZh: "馬丘比丘位於秘魯。" },
+    { es: "Chile", en: "Chile", pos: "n.propio", zh: "智利", ex: "Chile es un país muy largo.", exZh: "智利是個狹長的國家。" },
+    { es: "Cuba", en: "Cuba", pos: "n.propio", zh: "古巴", ex: "Cuba tiene playas hermosas.", exZh: "古巴有美麗的海灘。" },
+    { es: "Venezuela", en: "Venezuela", pos: "n.propio", zh: "委內瑞拉", ex: "Venezuela está en Sudamérica.", exZh: "委內瑞拉在南美洲。" },
+    { es: "Ecuador", en: "Ecuador", pos: "n.propio", zh: "厄瓜多", ex: "Ecuador tiene las islas Galápagos.", exZh: "厄瓜多擁有加拉巴哥群島。" },
+    { es: "Guatemala", en: "Guatemala", pos: "n.propio", zh: "瓜地馬拉", ex: "Guatemala está en Centroamérica.", exZh: "瓜地馬拉在中美洲。" },
     { es: "Estados Unidos", pos: "n.propio", zh: "美國", ex: "Estados Unidos limita con México.", exZh: "美國與墨西哥接壤。" },
-    { es: "Francia", pos: "n.propio", zh: "法國", ex: "Francia está al lado de España.", exZh: "法國就在西班牙旁邊。" },
+    { es: "Francia", en: "France", pos: "n.propio", zh: "法國", ex: "Francia está al lado de España.", exZh: "法國就在西班牙旁邊。" },
   ],
   historia: [
-    { es: "historia", gender: "f", plural: "historias", pos: "n.", zh: "歷史", ex: "Me interesa la historia antigua.", exZh: "我對古代歷史很感興趣。" },
+    { es: "historia", en: "history", gender: "f", plural: "historias", pos: "n.", zh: "歷史", ex: "Me interesa la historia antigua.", exZh: "我對古代歷史很感興趣。" },
     { es: "guerra", gender: "f", plural: "guerras", pos: "n.", zh: "戰爭", ex: "La guerra duró varios años.", exZh: "這場戰爭持續了好幾年。" },
-    { es: "imperio", gender: "m", plural: "imperios", pos: "n.", zh: "帝國", ex: "El imperio romano fue enorme.", exZh: "羅馬帝國非常龐大。" },
-    { es: "revolución", gender: "f", plural: "revoluciones", pos: "n.", zh: "革命", ex: "La revolución cambió el país.", exZh: "這場革命改變了這個國家。" },
-    { es: "independencia", gender: "f", plural: "independencias", pos: "n.", zh: "獨立", ex: "Celebran la independencia en julio.", exZh: "他們在七月慶祝獨立紀念日。" },
+    { es: "imperio", en: "empire", gender: "m", plural: "imperios", pos: "n.", zh: "帝國", ex: "El imperio romano fue enorme.", exZh: "羅馬帝國非常龐大。" },
+    { es: "revolución", en: "revolution", gender: "f", plural: "revoluciones", pos: "n.", zh: "革命", ex: "La revolución cambió el país.", exZh: "這場革命改變了這個國家。" },
+    { es: "independencia", en: "independence", gender: "f", plural: "independencias", pos: "n.", zh: "獨立", ex: "Celebran la independencia en julio.", exZh: "他們在七月慶祝獨立紀念日。" },
     { es: "rey", gender: "m", plural: "reyes", pos: "n.", zh: "國王", ex: "El rey vivía en el palacio.", exZh: "國王曾住在皇宮裡。" },
     { es: "reina", gender: "f", plural: "reinas", pos: "n.", zh: "皇后;女王", ex: "La reina gobernó por 40 años.", exZh: "這位女王統治了四十年。" },
-    { es: "civilización", gender: "f", plural: "civilizaciones", pos: "n.", zh: "文明", ex: "Fue una civilización avanzada.", exZh: "那是一個先進的文明。" },
-    { es: "conquista", gender: "f", plural: "conquistas", pos: "n.", zh: "征服", ex: "La conquista duró décadas.", exZh: "這場征服持續了數十年。" },
-    { es: "tratado", gender: "m", plural: "tratados", pos: "n.", zh: "條約", ex: "Firmaron un tratado de paz.", exZh: "他們簽署了一項和平條約。" },
-    { es: "monarquía", gender: "f", plural: "monarquías", pos: "n.", zh: "君主制", ex: "España es una monarquía.", exZh: "西班牙是君主制國家。" },
-    { es: "colonia", gender: "f", plural: "colonias", pos: "n.", zh: "殖民地", ex: "Fue una colonia española.", exZh: "這裡曾是西班牙的殖民地。" },
+    { es: "civilización", en: "civilization", gender: "f", plural: "civilizaciones", pos: "n.", zh: "文明", ex: "Fue una civilización avanzada.", exZh: "那是一個先進的文明。" },
+    { es: "conquista", en: "conquest", gender: "f", plural: "conquistas", pos: "n.", zh: "征服", ex: "La conquista duró décadas.", exZh: "這場征服持續了數十年。" },
+    { es: "tratado", en: "treaty", gender: "m", plural: "tratados", pos: "n.", zh: "條約", ex: "Firmaron un tratado de paz.", exZh: "他們簽署了一項和平條約。" },
+    { es: "monarquía", en: "monarchy", gender: "f", plural: "monarquías", pos: "n.", zh: "君主制", ex: "España es una monarquía.", exZh: "西班牙是君主制國家。" },
+    { es: "colonia", en: "colony", gender: "f", plural: "colonias", pos: "n.", zh: "殖民地", ex: "Fue una colonia española.", exZh: "這裡曾是西班牙的殖民地。" },
   ],
   coloquial: [
     { es: "joder", pos: "interj.", zh: "該死;幹(強烈語氣詞)", note: "非正式/粗俗,西班牙常用", ex: "¡Joder, qué difícil es esto!", exZh: "該死,這也太難了吧!" },
@@ -911,6 +916,30 @@ function SpanishVocab() {
     );
   };
 
+  // Small hint shown only when the Spanish word has a genuinely
+  // close-looking English cognate (word.en) — a quick memory hook for
+  // learners who already know English, e.g. "hospital" → "≈ hospital".
+  // Not shown for every word on purpose: most words don't have a
+  // recognizable English lookalike, and showing an unrelated translation
+  // wouldn't help memorization the way a spelling match does.
+  const CognateHint = ({ word }) => {
+    if (!word.en) return null;
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          fontSize: "0.68rem",
+          color: "#8A7A5E",
+          fontStyle: "italic",
+          marginLeft: "0.4rem",
+        }}
+      >
+        ≈ {word.en}
+      </span>
+    );
+  };
+
   // ---------------------------------------------------------------------
   // Screen: MAP
   // ---------------------------------------------------------------------
@@ -1308,6 +1337,7 @@ function SpanishVocab() {
                     {w.es}
                   </span>
                   <GenderBadge word={w} />
+                  <CognateHint word={w} />
                 </div>
                 <div style={{ display: "flex", gap: "0.4rem" }}>
                   <button
