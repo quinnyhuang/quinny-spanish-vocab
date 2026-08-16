@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>西文單字學習</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231C2B3A'/%3E%3Ctext x='50' y='66' font-size='50' text-anchor='middle' fill='%23F5EFE0'%3E%C3%91%3C/text%3E%3C/svg%3E" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="西文單字" />
+<meta name="theme-color" content="#1C2B3A" />
+<style>
+  html, body { margin: 0; padding: 0; background: #1C2B3A; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+  * { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo, useCallback } = React;
+
+// ---------------------------------------------------------------------------
+// Lightweight inline-SVG icons (replaces lucide-react, which needs a bundler)
+// ---------------------------------------------------------------------------
+const Icon = ({ children, size = 16, ...props }) =>
+  React.createElement(
+    "svg",
+    {
+      width: size,
+      height: size,
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 2,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+    },
+    children
+  );
+
+const Check = (props) =>
+  React.createElement(Icon, props, React.createElement("polyline", { points: "20 6 9 17 4 12" }));
+
+const X = (props) =>
+  React.createElement(
+    Icon,
+    props,
+    React.createElement("line", { x1: 18, y1: 6, x2: 6, y2: 18 }),
+    React.createElement("line", { x1: 6, y1: 6, x2: 18, y2: 18 })
+  );
+
+const RotateCcw = (props) =>
+  React.createElement(
+    Icon,
+    props,
+    React.createElement("polyline", { points: "1 4 1 10 7 10" }),
+    React.createElement("path", { d: "M3.51 15a9 9 0 1 0 2.13-9.36L1 10" })
+  );
+
+const Volume2 = (props) =>
+  React.createElement(
+    Icon,
+    props,
+    React.createElement("polygon", { points: "11 5 6 9 2 9 2 15 6 15 11 19 11 5" }),
+    React.createElement("path", { d: "M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" })
+  );
+
+const BookOpenCheck = (props) =>
+  React.createElement(
+    Icon,
+    props,
+    React.createElement("path", { d: "M12 21V7" }),
+    React.createElement("path", {
+      d: "M16 12l2 2 4-4M22 6v13a1 1 0 0 1-1 1h-5a4 4 0 0 0-4 2 4 4 0 0 0-4-2H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5a4 4 0 0 1 4 2 4 4 0 0 1 4-2h5a1 1 0 0 1 1 1z",
+    })
+  );
+
+const Info = (props) =>
+  React.createElement(
+    Icon,
+    props,
+    React.createElement("circle", { cx: 12, cy: 12, r: 10 }),
+    React.createElement("line", { x1: 12, y1: 16, x2: 12, y2: 12 }),
+    React.createElement("line", { x1: 12, y1: 8, x2: 12.01, y2: 8 })
+  );
+
+const ArrowLeft = (props) =>
+  React.createElement(
+    Icon,
+    props,
+    React.createElement("line", { x1: 19, y1: 12, x2: 5, y2: 12 }),
+    React.createElement("polyline", { points: "12 19 5 12 12 5" })
+  );
+
+const Star = ({ fill = "none", stroke = "currentColor", size = 16, ...props }) =>
+  React.createElement(
+    "svg",
+    { width: size, height: size, viewBox: "0 0 24 24", fill, stroke, strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round", ...props },
+    React.createElement("polygon", {
+      points: "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2",
+    })
+  );
+
+const Play = (props) =>
+  React.createElement(Icon, props, React.createElement("polygon", { points: "5 3 19 12 5 21 5 3" }));
+
+// ===========================================================================
+// Config
+// ===========================================================================
+const STAGE_SIZE = 10; // words per small stage (小關)
+const CHAPTERS_STAGE_COUNT = 10; // stages per chapter (大關) -> 100 words/chapter
+// NOTE: architecture supports growing to 1000-word chapters (like a 7000-word
+// list split into 1000/2000/3000...). Content is currently smaller, so most
+// levels will only render a single chapter for now.
+
+// ===========================================================================
+// Data: CEFR-leveled Spanish vocabulary
+// ===========================================================================
+const LEVELS = ["A1", "A2", "B1", "B2", "C1"];
+
+const LEVEL_INFO = {
+  A1: { label: "入門", color: "#5B7F5A", light: "#E7EFE3" },
+  A2: { label: "初級", color: "#8A8A3C", light: "#F1F0DE" },
+  B1: { label: "中級", color: "#B98A2E", light: "#F6EAD3" },
+  B2: { label: "中高級", color: "#B85C2E", light: "#F5E0D0" },
+  C1: { label: "高級", color: "#A13A2F", light: "#F2DCD8" },
+};
+
+const WORD_BANK = {
+  A1: [
+    { es: "hola", pos: "interj.", zh: "你好", ex: "¡Hola! ¿Cómo estás?", exZh: "你好!你好嗎?" },
+    { es: "gracias", gender: "f", pos: "n.", zh: "謝謝", ex: "Muchas gracias por tu ayuda.", exZh: "非常謝謝你的幫忙。" },
+    { es: "agua", gender: "f", plural: "aguas", pos: "n.", zh: "水", ex: "Necesito un vaso de agua.", exZh: "我需要一杯水。" },
+    { es: "casa", gender: "f", plural: "casas", pos: "n.", zh: "房子;家", ex: "Voy a casa a las seis.", exZh: "我六點回家。" },
+    { es: "comer", pos: "v.", zh: "吃", ex: "Vamos a comer juntos.", exZh: "我們一起去吃飯吧。" },
+    { es: "amigo", gender: "m", plural: "amigos", pos: "n.", zh: "朋友", ex: "Es mi mejor amigo.", exZh: "他是我最好的朋友。" },
+    { es: "bueno", pos: "adj.", zh: "好的", ex: "Este café está muy bueno.", exZh: "這杯咖啡很好喝。" },
+    { es: "día", gender: "m", plural: "días", pos: "n.", zh: "天;日子", ex: "¡Que tengas un buen día!", exZh: "祝你有美好的一天!" },
+    { es: "trabajar", pos: "v.", zh: "工作", ex: "Trabajo en una oficina.", exZh: "我在辦公室工作。" },
+    { es: "familia", gender: "f", plural: "familias", pos: "n.", zh: "家庭", ex: "Mi familia es muy grande.", exZh: "我的家庭很大。" },
+    { es: "tiempo", gender: "m", plural: "tiempos", pos: "n.", zh: "時間;天氣", ex: "No tengo mucho tiempo.", exZh: "我沒有太多時間。" },
+    { es: "libro", gender: "m", plural: "libros", pos: "n.", zh: "書", ex: "Estoy leyendo un libro nuevo.", exZh: "我正在讀一本新書。" },
+    { es: "mesa", gender: "f", plural: "mesas", pos: "n.", zh: "桌子", ex: "La mesa está en la cocina.", exZh: "桌子在廚房裡。" },
+    { es: "perro", gender: "m", plural: "perros", pos: "n.", zh: "狗", ex: "Mi perro es muy cariñoso.", exZh: "我的狗很親人。" },
+    { es: "gato", gender: "m", plural: "gatos", pos: "n.", zh: "貓", ex: "El gato duerme todo el día.", exZh: "貓整天都在睡覺。" },
+    { es: "niño", gender: "m", plural: "niños", pos: "n.", zh: "小孩", ex: "El niño juega en el parque.", exZh: "小孩在公園玩。" },
+    { es: "mujer", gender: "f", plural: "mujeres", pos: "n.", zh: "女人", ex: "Esa mujer es mi jefa.", exZh: "那位女士是我老闆。" },
+    { es: "hombre", gender: "m", plural: "hombres", pos: "n.", zh: "男人", ex: "El hombre lleva un sombrero.", exZh: "那位男士戴著帽子。" },
+    { es: "escuela", gender: "f", plural: "escuelas", pos: "n.", zh: "學校", ex: "Los niños van a la escuela.", exZh: "孩子們去上學。" },
+    { es: "coche", gender: "m", plural: "coches", pos: "n.", zh: "車子", ex: "Mi coche es rojo.", exZh: "我的車是紅色的。" },
+  ],
+  A2: [
+    { es: "viajar", pos: "v.", zh: "旅行", ex: "Me encanta viajar en verano.", exZh: "我很喜歡在夏天旅行。" },
+    { es: "recordar", pos: "v.", zh: "記得;想起", ex: "No recuerdo su nombre.", exZh: "我不記得他的名字。" },
+    { es: "empezar", pos: "v.", zh: "開始", ex: "La clase empieza a las nueve.", exZh: "課九點開始。" },
+    { es: "cocina", gender: "f", plural: "cocinas", pos: "n.", zh: "廚房;料理", ex: "La cocina italiana es deliciosa.", exZh: "義大利料理很好吃。" },
+    { es: "deporte", gender: "m", plural: "deportes", pos: "n.", zh: "運動", ex: "¿Practicas algún deporte?", exZh: "你有在做什麼運動嗎?" },
+    { es: "aeropuerto", gender: "m", plural: "aeropuertos", pos: "n.", zh: "機場", ex: "Llegamos al aeropuerto temprano.", exZh: "我們提早到了機場。" },
+    { es: "cansado", pos: "adj.", zh: "疲累的", ex: "Estoy muy cansado hoy.", exZh: "我今天很累。" },
+    { es: "oficina", gender: "f", plural: "oficinas", pos: "n.", zh: "辦公室", ex: "La oficina está cerrada los domingos.", exZh: "辦公室週日不開。" },
+    { es: "reunión", gender: "f", plural: "reuniones", pos: "n.", zh: "會議", ex: "Tenemos una reunión a las tres.", exZh: "我們三點有個會議。" },
+    { es: "cumpleaños", gender: "m", plural: "cumpleaños", pos: "n.", zh: "生日", note: "單複數同形", ex: "¡Feliz cumpleaños!", exZh: "生日快樂!" },
+    { es: "paisaje", gender: "m", plural: "paisajes", pos: "n.", zh: "風景", ex: "El paisaje desde aquí es hermoso.", exZh: "從這裡看的風景很美。" },
+    { es: "costumbre", gender: "f", plural: "costumbres", pos: "n.", zh: "習慣;習俗", ex: "Es una costumbre local.", exZh: "這是當地的習俗。" },
+    { es: "ciudad", gender: "f", plural: "ciudades", pos: "n.", zh: "城市", ex: "Vivo en una ciudad grande.", exZh: "我住在一個大城市。" },
+    { es: "calle", gender: "f", plural: "calles", pos: "n.", zh: "街道", ex: "La tienda está en esta calle.", exZh: "那間店在這條街上。" },
+    { es: "tienda", gender: "f", plural: "tiendas", pos: "n.", zh: "商店", ex: "Esa tienda vende ropa.", exZh: "那間店賣衣服。" },
+    { es: "dinero", gender: "m", pos: "n.", zh: "錢", note: "通常不用複數", ex: "No tengo suficiente dinero.", exZh: "我錢不夠。" },
+    { es: "banco", gender: "m", plural: "bancos", pos: "n.", zh: "銀行;長椅", ex: "Voy al banco a las diez.", exZh: "我十點要去銀行。" },
+    { es: "hospital", gender: "m", plural: "hospitales", pos: "n.", zh: "醫院", ex: "El hospital está cerca de aquí.", exZh: "醫院離這裡很近。" },
+    { es: "museo", gender: "m", plural: "museos", pos: "n.", zh: "博物館", ex: "Visitamos un museo de arte.", exZh: "我們參觀了一間美術館。" },
+    { es: "parque", gender: "m", plural: "parques", pos: "n.", zh: "公園", ex: "Los niños corren en el parque.", exZh: "孩子們在公園跑步。" },
+  ],
+  B1: [
+    { es: "sin embargo", pos: "conj.", zh: "然而", ex: "Sin embargo, no llegamos a tiempo.", exZh: "然而,我們沒有準時到。" },
+    { es: "a pesar de", pos: "loc.", zh: "儘管", ex: "A pesar de la lluvia, salimos.", exZh: "儘管下雨,我們還是出門了。" },
+    { es: "lograr", pos: "v.", zh: "達成;實現", ex: "Logró terminar el proyecto a tiempo.", exZh: "他準時完成了這個專案。" },
+    { es: "superar", pos: "v.", zh: "克服;超越", ex: "Tuvo que superar muchos obstáculos.", exZh: "他必須克服許多阻礙。" },
+    { es: "sospechar", pos: "v.", zh: "懷疑", ex: "Sospecho que algo no está bien.", exZh: "我懷疑有些事情不對勁。" },
+    { es: "actitud", gender: "f", plural: "actitudes", pos: "n.", zh: "態度", ex: "Tiene una actitud muy positiva.", exZh: "他的態度很積極。" },
+    { es: "con respecto a", pos: "loc.", zh: "關於", ex: "Con respecto a tu pregunta...", exZh: "關於你的問題..." },
+    { es: "disponible", pos: "adj.", zh: "可用的;有空的", ex: "¿Está disponible mañana?", exZh: "你明天有空嗎?" },
+    { es: "exigir", pos: "v.", zh: "要求", ex: "El jefe exige mucho esfuerzo.", exZh: "老闆要求很高的努力。" },
+    { es: "fomentar", pos: "v.", zh: "促進;鼓勵", ex: "Quieren fomentar la lectura.", exZh: "他們想推廣閱讀。" },
+    { es: "imprescindible", pos: "adj.", zh: "不可或缺的", ex: "El agua es imprescindible para vivir.", exZh: "水是生存不可或缺的。" },
+    { es: "plantear", pos: "v.", zh: "提出(問題、想法)", ex: "Voy a plantear una duda.", exZh: "我要提出一個疑問。" },
+    { es: "decisión", gender: "f", plural: "decisiones", pos: "n.", zh: "決定", ex: "Fue una decisión difícil.", exZh: "那是一個困難的決定。" },
+    { es: "objetivo", gender: "m", plural: "objetivos", pos: "n.", zh: "目標", ex: "Nuestro objetivo es claro.", exZh: "我們的目標很明確。" },
+    { es: "ventaja", gender: "f", plural: "ventajas", pos: "n.", zh: "優點;優勢", ex: "Tiene muchas ventajas.", exZh: "這有很多優點。" },
+    { es: "desventaja", gender: "f", plural: "desventajas", pos: "n.", zh: "缺點;劣勢", ex: "Esa es la principal desventaja.", exZh: "那是主要的缺點。" },
+    { es: "consecuencia", gender: "f", plural: "consecuencias", pos: "n.", zh: "後果", ex: "Hay que pensar en las consecuencias.", exZh: "必須考慮後果。" },
+    { es: "propuesta", gender: "f", plural: "propuestas", pos: "n.", zh: "提案;建議", ex: "Presentamos una nueva propuesta.", exZh: "我們提出了一項新提案。" },
+    { es: "obstáculo", gender: "m", plural: "obstáculos", pos: "n.", zh: "阻礙", ex: "Superamos varios obstáculos.", exZh: "我們克服了幾個阻礙。" },
+    { es: "solución", gender: "f", plural: "soluciones", pos: "n.", zh: "解決方案", ex: "Encontramos una buena solución.", exZh: "我們找到了一個好的解決方案。" },
+  ],
+  B2: [
+    { es: "conllevar", pos: "v.", zh: "伴隨帶來", ex: "Este trabajo conlleva mucha responsabilidad.", exZh: "這份工作伴隨著很大的責任。" },
+    { es: "matizar", pos: "v.", zh: "細緻說明;修飾", ex: "Quiero matizar lo que dije antes.", exZh: "我想針對之前說的話做些補充說明。" },
+    { es: "suscitar", pos: "v.", zh: "引發", ex: "La noticia suscitó mucho debate.", exZh: "這則新聞引發了很多討論。" },
+    { es: "ámbito", gender: "m", plural: "ámbitos", pos: "n.", zh: "範疇;領域", ex: "Trabaja en el ámbito de la salud.", exZh: "他在健康領域工作。" },
+    { es: "abordar", pos: "v.", zh: "處理;著手應對", ex: "Debemos abordar el problema pronto.", exZh: "我們必須盡快處理這個問題。" },
+    { es: "controvertido", pos: "adj.", zh: "有爭議的", ex: "Es un tema muy controvertido.", exZh: "這是一個很有爭議的話題。" },
+    { es: "desencadenar", pos: "v.", zh: "引發;觸發", ex: "El error desencadenó una crisis.", exZh: "這個錯誤引發了一場危機。" },
+    { es: "prescindir", pos: "v.", zh: "捨棄;不使用", ex: "No podemos prescindir de tu ayuda.", exZh: "我們無法沒有你的幫忙。" },
+    { es: "vislumbrar", pos: "v.", zh: "隱約看見;預見", ex: "Empiezo a vislumbrar una solución.", exZh: "我開始隱約看見一個解決方案。" },
+    { es: "atenuar", pos: "v.", zh: "減輕;緩和", ex: "Esto ayuda a atenuar el dolor.", exZh: "這有助於減輕疼痛。" },
+    { es: "denotar", pos: "v.", zh: "顯示出;表明", ex: "Su tono denota cierta molestia.", exZh: "他的語氣透露出一些不悅。" },
+    { es: "propiciar", pos: "v.", zh: "促成;有利於", ex: "El clima propicia el turismo.", exZh: "這樣的氣候有利於觀光業。" },
+    { es: "enfoque", gender: "m", plural: "enfoques", pos: "n.", zh: "觀點;取向", ex: "Prefiero otro enfoque.", exZh: "我比較喜歡另一種觀點。" },
+    { es: "trasfondo", gender: "m", plural: "trasfondos", pos: "n.", zh: "背景;深層原因", ex: "Hay un trasfondo político.", exZh: "背後有政治因素。" },
+    { es: "repercusión", gender: "f", plural: "repercusiones", pos: "n.", zh: "影響;迴響", ex: "Tuvo gran repercusión.", exZh: "這造成了很大的影響。" },
+    { es: "incertidumbre", gender: "f", plural: "incertidumbres", pos: "n.", zh: "不確定性", ex: "Vivimos en tiempos de incertidumbre.", exZh: "我們身處不確定的時代。" },
+    { es: "rigor", gender: "m", pos: "n.", zh: "嚴謹;嚴格", note: "通常不用複數", ex: "Analiza los datos con rigor.", exZh: "他嚴謹地分析資料。" },
+    { es: "sesgo", gender: "m", plural: "sesgos", pos: "n.", zh: "偏見;偏差", ex: "El estudio tiene un sesgo claro.", exZh: "這項研究有明顯的偏差。" },
+    { es: "matiz", gender: "m", plural: "matices", pos: "n.", zh: "細微差別", ex: "Hay un matiz importante aquí.", exZh: "這裡有一個重要的細微差別。" },
+    { es: "premisa", gender: "f", plural: "premisas", pos: "n.", zh: "前提", ex: "Parte de una premisa falsa.", exZh: "這是從一個錯誤的前提出發。" },
+  ],
+  C1: [
+    { es: "idiosincrasia", gender: "f", plural: "idiosincrasias", pos: "n.", zh: "特質;獨特習性", ex: "Cada país tiene su idiosincrasia.", exZh: "每個國家都有自己的獨特習性。" },
+    { es: "paradigma", gender: "m", plural: "paradigmas", pos: "n.", zh: "典範;範式", ex: "Supuso un cambio de paradigma.", exZh: "這代表了一次典範轉移。" },
+    { es: "subyacente", pos: "adj.", zh: "潛在的;底層的", ex: "Hay un problema subyacente.", exZh: "背後存在一個潛在的問題。" },
+    { es: "inherente", pos: "adj.", zh: "固有的;內在的", ex: "El riesgo es inherente al negocio.", exZh: "風險是這個行業固有的。" },
+    { es: "contundente", pos: "adj.", zh: "強而有力的;決定性的", ex: "Dio una respuesta contundente.", exZh: "他給出了一個強而有力的回應。" },
+    { es: "exhaustivo", pos: "adj.", zh: "詳盡的;徹底的", ex: "Hicieron un análisis exhaustivo.", exZh: "他們做了一份詳盡的分析。" },
+    { es: "ambiguo", pos: "adj.", zh: "模稜兩可的", ex: "Su respuesta fue muy ambigua.", exZh: "他的回答很模稜兩可。" },
+    { es: "dilucidar", pos: "v.", zh: "釐清;闡明", ex: "Aún queda mucho por dilucidar.", exZh: "還有很多需要釐清的地方。" },
+    { es: "intrínseco", pos: "adj.", zh: "內在的;本質的", ex: "Tiene un valor intrínseco.", exZh: "它具有內在的價值。" },
+    { es: "meritocracia", gender: "f", plural: "meritocracias", pos: "n.", zh: "菁英制度", ex: "El sistema se basa en la meritocracia.", exZh: "這個制度是以菁英制度為基礎。" },
+    { es: "hegemonía", gender: "f", plural: "hegemonías", pos: "n.", zh: "霸權;主導地位", ex: "Buscan mantener su hegemonía.", exZh: "他們試圖維持自己的主導地位。" },
+    { es: "pragmatismo", gender: "m", pos: "n.", zh: "實用主義", note: "通常不用複數", ex: "Actuó con mucho pragmatismo.", exZh: "他的行事作風非常務實。" },
+    { es: "dicotomía", gender: "f", plural: "dicotomías", pos: "n.", zh: "二分法", ex: "Existe una dicotomía clara.", exZh: "存在著明顯的二分法。" },
+    { es: "controversia", gender: "f", plural: "controversias", pos: "n.", zh: "爭議", ex: "Generó mucha controversia.", exZh: "這引發了很多爭議。" },
+    { es: "disyuntiva", gender: "f", plural: "disyuntivas", pos: "n.", zh: "抉擇;兩難", ex: "Nos enfrenta a una disyuntiva.", exZh: "我們面臨一個抉擇。" },
+    { es: "coyuntura", gender: "f", plural: "coyunturas", pos: "n.", zh: "局勢;時局", ex: "La coyuntura económica es difícil.", exZh: "目前的經濟局勢很艱難。" },
+    { es: "trascendencia", gender: "f", pos: "n.", zh: "重要性;深遠影響", note: "通常不用複數", ex: "Es un tema de gran trascendencia.", exZh: "這是個影響深遠的議題。" },
+    { es: "injerencia", gender: "f", plural: "injerencias", pos: "n.", zh: "干涉", ex: "Rechazan cualquier injerencia externa.", exZh: "他們拒絕任何外部干涉。" },
+    { es: "heterogeneidad", gender: "f", pos: "n.", zh: "異質性;多樣性", note: "通常不用複數", ex: "Hay gran heterogeneidad cultural.", exZh: "文化上有很大的多樣性。" },
+    { es: "preponderancia", gender: "f", pos: "n.", zh: "優勢;主導地位", note: "通常不用複數", ex: "Tiene preponderancia en el mercado.", exZh: "它在市場上佔有主導地位。" },
+  ],
+};
+
+// ===========================================================================
+// Data: themed mini-units
+// ===========================================================================
+const THEMES = [
+  "pronombres",
+  "numeros",
+  "preguntas",
+  "dias",
+  "meses",
+  "estaciones",
+  "comida",
+  "paises",
+  "historia",
+  "coloquial",
+];
+
+const THEME_INFO = {
+  pronombres: { label: "人稱代名詞", icon: "🙋", color: "#3E6E8E", light: "#DCE8EF" },
+  numeros: { label: "數字", icon: "🔢", color: "#5B7F5A", light: "#E3EEE1" },
+  preguntas: { label: "5W1H 疑問詞", icon: "❓", color: "#7A5A9E", light: "#EAE1F1" },
+  dias: { label: "星期", icon: "📅", color: "#3E7E7E", light: "#DDEDED" },
+  meses: { label: "月份", icon: "🗓️", color: "#8A6A3C", light: "#F0E7D6" },
+  estaciones: { label: "季節", icon: "🍂", color: "#B06A2E", light: "#F3E2D2" },
+  comida: { label: "食物", icon: "🍞", color: "#B98A2E", light: "#F6EAD3" },
+  paises: { label: "國家名稱", icon: "🌍", color: "#3E6E5E", light: "#DDEDE6" },
+  historia: { label: "歷史", icon: "🏛️", color: "#7A4A3A", light: "#EDE0DA" },
+  coloquial: { label: "道地口語／俚語", icon: "💬", color: "#A13A5A", light: "#F2DCE4" },
+};
+
+const THEME_BANK = {
+  pronombres: [
+    { es: "yo", pos: "pron.", zh: "我", ex: "Yo estudio español.", exZh: "我在學西班牙文。" },
+    { es: "tú", pos: "pron.", zh: "你(非正式)", ex: "Tú hablas muy bien.", exZh: "你說得很好。" },
+    { es: "él", pos: "pron.", zh: "他", ex: "Él vive en Madrid.", exZh: "他住在馬德里。" },
+    { es: "ella", pos: "pron.", zh: "她", ex: "Ella trabaja aquí.", exZh: "她在這裡工作。" },
+    { es: "usted", pos: "pron.", zh: "您(正式)", ex: "¿Usted es el profesor?", exZh: "您是老師嗎?" },
+    { es: "nosotros", pos: "pron.", zh: "我們(陽性/混合)", ex: "Nosotros vamos al cine.", exZh: "我們要去看電影。" },
+    { es: "nosotras", pos: "pron.", zh: "我們(陰性)", ex: "Nosotras somos amigas.", exZh: "我們是朋友(陰性)。" },
+    { es: "vosotros", pos: "pron.", zh: "你們(西班牙用法)", ex: "Vosotros sois muy amables.", exZh: "你們人真好。" },
+    { es: "ellos", pos: "pron.", zh: "他們", ex: "Ellos llegan mañana.", exZh: "他們明天到。" },
+    { es: "ellas", pos: "pron.", zh: "她們", ex: "Ellas cocinan juntas.", exZh: "她們一起做飯。" },
+    { es: "ustedes", pos: "pron.", zh: "你們(正式/拉美通用)", ex: "¿Ustedes quieren café?", exZh: "你們要喝咖啡嗎?" },
+  ],
+  numeros: [
+    { es: "uno", pos: "num.", zh: "一", note: "1", ex: "Tengo un hermano.", exZh: "我有一個兄弟。" },
+    { es: "dos", pos: "num.", zh: "二", note: "2", ex: "Son las dos.", exZh: "現在兩點。" },
+    { es: "tres", pos: "num.", zh: "三", note: "3", ex: "Hay tres gatos.", exZh: "有三隻貓。" },
+    { es: "cuatro", pos: "num.", zh: "四", note: "4", ex: "Vivo en el cuarto piso.", exZh: "我住在四樓。" },
+    { es: "cinco", pos: "num.", zh: "五", note: "5", ex: "Cinco minutos, por favor.", exZh: "請給我五分鐘。" },
+    { es: "seis", pos: "num.", zh: "六", note: "6", ex: "Nos vemos a las seis.", exZh: "我們六點見。" },
+    { es: "siete", pos: "num.", zh: "七", note: "7", ex: "Trabajo siete horas.", exZh: "我工作七小時。" },
+    { es: "ocho", pos: "num.", zh: "八", note: "8", ex: "Son las ocho ya.", exZh: "已經八點了。" },
+    { es: "nueve", pos: "num.", zh: "九", note: "9", ex: "Tiene nueve años.", exZh: "他九歲了。" },
+    { es: "diez", pos: "num.", zh: "十", note: "10", ex: "Cuento hasta diez.", exZh: "我數到十。" },
+    { es: "cien", pos: "num.", zh: "一百", note: "100", ex: "Cuesta cien euros.", exZh: "要價一百歐元。" },
+    { es: "mil", pos: "num.", zh: "一千", note: "1000", ex: "Hay mil formas de decirlo.", exZh: "有一千種說法。" },
+  ],
+  preguntas: [
+    { es: "qué", pos: "pron.", zh: "什麼", ex: "¿Qué haces?", exZh: "你在做什麼?" },
+    { es: "quién", pos: "pron.", zh: "誰", ex: "¿Quién es esa persona?", exZh: "那個人是誰?" },
+    { es: "cuándo", pos: "adv.", zh: "何時", ex: "¿Cuándo llegas?", exZh: "你什麼時候到?" },
+    { es: "dónde", pos: "adv.", zh: "哪裡", ex: "¿Dónde vives?", exZh: "你住在哪裡?" },
+    { es: "por qué", pos: "adv.", zh: "為什麼", ex: "¿Por qué lloras?", exZh: "你為什麼哭?" },
+    { es: "cómo", pos: "adv.", zh: "如何;怎麼樣", ex: "¿Cómo estás?", exZh: "你好嗎?" },
+    { es: "cuál", pos: "pron.", zh: "哪一個", ex: "¿Cuál prefieres?", exZh: "你比較喜歡哪一個?" },
+    { es: "cuánto", pos: "pron.", zh: "多少", ex: "¿Cuánto cuesta esto?", exZh: "這個多少錢?" },
+  ],
+  dias: [
+    { es: "lunes", gender: "m", plural: "lunes", pos: "n.", zh: "星期一", note: "單複數同形", ex: "El lunes empiezo a trabajar.", exZh: "我星期一開始上班。" },
+    { es: "martes", gender: "m", plural: "martes", pos: "n.", zh: "星期二", note: "單複數同形", ex: "Tengo clase los martes.", exZh: "我每週二有課。" },
+    { es: "miércoles", gender: "m", plural: "miércoles", pos: "n.", zh: "星期三", note: "單複數同形", ex: "Hoy es miércoles.", exZh: "今天是星期三。" },
+    { es: "jueves", gender: "m", plural: "jueves", pos: "n.", zh: "星期四", note: "單複數同形", ex: "El jueves hay reunión.", exZh: "星期四有會議。" },
+    { es: "viernes", gender: "m", plural: "viernes", pos: "n.", zh: "星期五", note: "單複數同形", ex: "¡Por fin es viernes!", exZh: "終於到星期五了!" },
+    { es: "sábado", gender: "m", plural: "sábados", pos: "n.", zh: "星期六", ex: "Salimos el sábado.", exZh: "我們星期六出門。" },
+    { es: "domingo", gender: "m", plural: "domingos", pos: "n.", zh: "星期日", ex: "Descanso los domingos.", exZh: "我星期日休息。" },
+  ],
+  meses: [
+    { es: "enero", gender: "m", plural: "eneros", pos: "n.", zh: "一月", ex: "Enero es muy frío.", exZh: "一月很冷。" },
+    { es: "febrero", gender: "m", plural: "febreros", pos: "n.", zh: "二月", ex: "Mi cumpleaños es en febrero.", exZh: "我的生日在二月。" },
+    { es: "marzo", gender: "m", plural: "marzos", pos: "n.", zh: "三月", ex: "La primavera empieza en marzo.", exZh: "春天在三月開始。" },
+    { es: "abril", gender: "m", plural: "abriles", pos: "n.", zh: "四月", ex: "Llueve mucho en abril.", exZh: "四月常下雨。" },
+    { es: "mayo", gender: "m", plural: "mayos", pos: "n.", zh: "五月", ex: "En mayo hace buen tiempo.", exZh: "五月天氣很好。" },
+    { es: "junio", gender: "m", plural: "junios", pos: "n.", zh: "六月", ex: "Las clases terminan en junio.", exZh: "課程六月結束。" },
+    { es: "julio", gender: "m", plural: "julios", pos: "n.", zh: "七月", ex: "Julio es el mes más caluroso.", exZh: "七月是最熱的月份。" },
+    { es: "agosto", gender: "m", plural: "agostos", pos: "n.", zh: "八月", ex: "Viajamos en agosto.", exZh: "我們八月去旅行。" },
+    { es: "septiembre", gender: "m", plural: "septiembres", pos: "n.", zh: "九月", ex: "El curso empieza en septiembre.", exZh: "課程九月開始。" },
+    { es: "octubre", gender: "m", plural: "octubres", pos: "n.", zh: "十月", ex: "Octubre trae hojas de colores.", exZh: "十月帶來繽紛的落葉。" },
+    { es: "noviembre", gender: "m", plural: "noviembres", pos: "n.", zh: "十一月", ex: "Noviembre es frío y gris.", exZh: "十一月又冷又陰。" },
+    { es: "diciembre", gender: "m", plural: "diciembres", pos: "n.", zh: "十二月", ex: "Diciembre es el mes de fiestas.", exZh: "十二月是節慶月份。" },
+  ],
+  estaciones: [
+    { es: "primavera", gender: "f", plural: "primaveras", pos: "n.", zh: "春天", ex: "Las flores salen en primavera.", exZh: "花朵在春天綻放。" },
+    { es: "verano", gender: "m", plural: "veranos", pos: "n.", zh: "夏天", ex: "En verano hace mucho calor.", exZh: "夏天非常熱。" },
+    { es: "otoño", gender: "m", plural: "otoños", pos: "n.", zh: "秋天", ex: "Las hojas caen en otoño.", exZh: "秋天樹葉會掉落。" },
+    { es: "invierno", gender: "m", plural: "inviernos", pos: "n.", zh: "冬天", ex: "Nieva mucho en invierno.", exZh: "冬天常下雪。" },
+    { es: "estación", gender: "f", plural: "estaciones", pos: "n.", zh: "季節;車站", ex: "¿Cuál es tu estación favorita?", exZh: "你最喜歡哪個季節?" },
+  ],
+  comida: [
+    { es: "pan", gender: "m", plural: "panes", pos: "n.", zh: "麵包", ex: "Compro pan cada mañana.", exZh: "我每天早上買麵包。" },
+    { es: "arroz", gender: "m", plural: "arroces", pos: "n.", zh: "米飯", ex: "El arroz es el plato principal.", exZh: "米飯是主食。" },
+    { es: "pollo", gender: "m", plural: "pollos", pos: "n.", zh: "雞肉", ex: "Cenamos pollo asado.", exZh: "我們吃烤雞當晚餐。" },
+    { es: "fruta", gender: "f", plural: "frutas", pos: "n.", zh: "水果", ex: "Como fruta todos los días.", exZh: "我每天吃水果。" },
+    { es: "verdura", gender: "f", plural: "verduras", pos: "n.", zh: "蔬菜", ex: "La verdura es buena para la salud.", exZh: "蔬菜對健康有益。" },
+    { es: "carne", gender: "f", plural: "carnes", pos: "n.", zh: "肉", ex: "No como carne roja.", exZh: "我不吃紅肉。" },
+    { es: "pescado", gender: "m", plural: "pescados", pos: "n.", zh: "魚(食物)", ex: "El pescado está muy fresco.", exZh: "這條魚很新鮮。" },
+    { es: "huevo", gender: "m", plural: "huevos", pos: "n.", zh: "蛋", ex: "Quiero un huevo frito.", exZh: "我要一顆荷包蛋。" },
+    { es: "queso", gender: "m", plural: "quesos", pos: "n.", zh: "起司", ex: "Este queso es de España.", exZh: "這個起司來自西班牙。" },
+    { es: "sopa", gender: "f", plural: "sopas", pos: "n.", zh: "湯", ex: "La sopa está caliente.", exZh: "湯很燙。" },
+    { es: "postre", gender: "m", plural: "postres", pos: "n.", zh: "甜點", ex: "¿Qué hay de postre?", exZh: "甜點吃什麼?" },
+  ],
+  paises: [
+    { es: "España", pos: "n.propio", zh: "西班牙", ex: "España está en Europa.", exZh: "西班牙在歐洲。" },
+    { es: "México", pos: "n.propio", zh: "墨西哥", ex: "México tiene mucha historia.", exZh: "墨西哥有豐富的歷史。" },
+    { es: "Argentina", pos: "n.propio", zh: "阿根廷", ex: "Argentina es famosa por el tango.", exZh: "阿根廷以探戈聞名。" },
+    { es: "Colombia", pos: "n.propio", zh: "哥倫比亞", ex: "Colombia produce mucho café.", exZh: "哥倫比亞生產很多咖啡。" },
+    { es: "Perú", pos: "n.propio", zh: "秘魯", ex: "Machu Picchu está en Perú.", exZh: "馬丘比丘位於秘魯。" },
+    { es: "Chile", pos: "n.propio", zh: "智利", ex: "Chile es un país muy largo.", exZh: "智利是個狹長的國家。" },
+    { es: "Cuba", pos: "n.propio", zh: "古巴", ex: "Cuba tiene playas hermosas.", exZh: "古巴有美麗的海灘。" },
+    { es: "Venezuela", pos: "n.propio", zh: "委內瑞拉", ex: "Venezuela está en Sudamérica.", exZh: "委內瑞拉在南美洲。" },
+    { es: "Ecuador", pos: "n.propio", zh: "厄瓜多", ex: "Ecuador tiene las islas Galápagos.", exZh: "厄瓜多擁有加拉巴哥群島。" },
+    { es: "Guatemala", pos: "n.propio", zh: "瓜地馬拉", ex: "Guatemala está en Centroamérica.", exZh: "瓜地馬拉在中美洲。" },
+    { es: "Estados Unidos", pos: "n.propio", zh: "美國", ex: "Estados Unidos limita con México.", exZh: "美國與墨西哥接壤。" },
+    { es: "Francia", pos: "n.propio", zh: "法國", ex: "Francia está al lado de España.", exZh: "法國就在西班牙旁邊。" },
+  ],
+  historia: [
+    { es: "historia", gender: "f", plural: "historias", pos: "n.", zh: "歷史", ex: "Me interesa la historia antigua.", exZh: "我對古代歷史很感興趣。" },
+    { es: "guerra", gender: "f", plural: "guerras", pos: "n.", zh: "戰爭", ex: "La guerra duró varios años.", exZh: "這場戰爭持續了好幾年。" },
+    { es: "imperio", gender: "m", plural: "imperios", pos: "n.", zh: "帝國", ex: "El imperio romano fue enorme.", exZh: "羅馬帝國非常龐大。" },
+    { es: "revolución", gender: "f", plural: "revoluciones", pos: "n.", zh: "革命", ex: "La revolución cambió el país.", exZh: "這場革命改變了這個國家。" },
+    { es: "independencia", gender: "f", plural: "independencias", pos: "n.", zh: "獨立", ex: "Celebran la independencia en julio.", exZh: "他們在七月慶祝獨立紀念日。" },
+    { es: "rey", gender: "m", plural: "reyes", pos: "n.", zh: "國王", ex: "El rey vivía en el palacio.", exZh: "國王曾住在皇宮裡。" },
+    { es: "reina", gender: "f", plural: "reinas", pos: "n.", zh: "皇后;女王", ex: "La reina gobernó por 40 años.", exZh: "這位女王統治了四十年。" },
+    { es: "civilización", gender: "f", plural: "civilizaciones", pos: "n.", zh: "文明", ex: "Fue una civilización avanzada.", exZh: "那是一個先進的文明。" },
+    { es: "conquista", gender: "f", plural: "conquistas", pos: "n.", zh: "征服", ex: "La conquista duró décadas.", exZh: "這場征服持續了數十年。" },
+    { es: "tratado", gender: "m", plural: "tratados", pos: "n.", zh: "條約", ex: "Firmaron un tratado de paz.", exZh: "他們簽署了一項和平條約。" },
+    { es: "monarquía", gender: "f", plural: "monarquías", pos: "n.", zh: "君主制", ex: "España es una monarquía.", exZh: "西班牙是君主制國家。" },
+    { es: "colonia", gender: "f", plural: "colonias", pos: "n.", zh: "殖民地", ex: "Fue una colonia española.", exZh: "這裡曾是西班牙的殖民地。" },
+  ],
+  coloquial: [
+    { es: "joder", pos: "interj.", zh: "該死;幹(強烈語氣詞)", note: "非正式/粗俗,西班牙常用", ex: "¡Joder, qué difícil es esto!", exZh: "該死,這也太難了吧!" },
+    { es: "mierda", gender: "f", plural: "mierdas", pos: "n.", zh: "屎;糟糕", note: "非正式/粗俗", ex: "¡Mierda, se me olvidó las llaves!", exZh: "糟糕,我忘記帶鑰匙了!" },
+    { es: "maldita sea", pos: "loc.", zh: "該死;可惡", note: "非正式", ex: "Maldita sea, llegamos tarde.", exZh: "可惡,我們遲到了。" },
+    { es: "hostia", pos: "interj.", zh: "哇靠;天啊", note: "非正式/粗俗,西班牙常用", ex: "¡Hostia, qué susto me diste!", exZh: "天啊,你嚇死我了!" },
+    { es: "cabrón/a", pos: "n.", zh: "混蛋(視語氣可為戲稱或辱罵)", note: "非正式/粗俗,依語境判斷", ex: "Eres un cabrón, ¡me asustaste!", exZh: "你這傢伙,把我嚇壞了!" },
+    { es: "tío / tía", pos: "n.", zh: "老兄;那個人(口語)", note: "口語,西班牙常用", ex: "Oye, tío, ¿qué tal?", exZh: "嘿,老兄,還好嗎?" },
+    { es: "guay", pos: "adj.", zh: "酷;讚", note: "口語,西班牙常用", ex: "¡Qué guay tu chaqueta!", exZh: "你的外套好酷喔!" },
+    { es: "chulo/a", pos: "adj.", zh: "帥氣的;拉風的(也可指臭屁)", note: "口語", ex: "Ese coche es muy chulo.", exZh: "那台車很帥。" },
+    { es: "rollo", gender: "m", plural: "rollos", pos: "n.", zh: "事情;氛圍(口語)", note: "口語,常用於'¡qué rollo!'", ex: "Qué rollo tener que madrugar.", exZh: "要早起真的很煩。" },
+    { es: "pasta", gender: "f", plural: "pastas", pos: "n.", zh: "錢(俚語,非義大利麵)", note: "口語,西班牙常用", ex: "No tengo pasta este mes.", exZh: "我這個月沒錢。" },
+    { es: "curro", gender: "m", plural: "curros", pos: "n.", zh: "工作(俚語)", note: "口語,西班牙常用", ex: "Mañana tengo curro temprano.", exZh: "我明天要早起上班。" },
+  ],
+};
+
+// ===========================================================================
+// Utilities
+// ===========================================================================
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function chunkStages(words) {
+  const stages = [];
+  for (let i = 0; i < words.length; i += STAGE_SIZE) {
+    stages.push({ index: stages.length, words: words.slice(i, i + STAGE_SIZE) });
+  }
+  return stages;
+}
+
+function chunkChapters(stages) {
+  const chapters = [];
+  for (let i = 0; i < stages.length; i += CHAPTERS_STAGE_COUNT) {
+    const stageSlice = stages.slice(i, i + CHAPTERS_STAGE_COUNT);
+    const firstWordNum = i * STAGE_SIZE + 1;
+    const lastWordNum = i * STAGE_SIZE + stageSlice.reduce((n, s) => n + s.words.length, 0);
+    chapters.push({ index: chapters.length, stages: stageSlice, range: `${firstWordNum}-${lastWordNum}` });
+  }
+  return chapters;
+}
+
+function normalizeEs(str) {
+  return str
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function masteryTier(bestAccuracy) {
+  if (bestAccuracy == null) return { label: "尚未挑戰", stars: 0, color: "#5C6B7A" };
+  if (bestAccuracy >= 100) return { label: "精通", stars: 3, color: "#D4A24C" };
+  if (bestAccuracy >= 80) return { label: "熟練", stars: 3, color: "#5B8C5A" };
+  if (bestAccuracy >= 50) return { label: "略熟", stars: 2, color: "#B98A2E" };
+  return { label: "尚未熟悉", stars: 1, color: "#A13A2F" };
+}
+
+function buildQuestions(words, attemptNumber) {
+  const pool = shuffle(words);
+  const spellingCount = attemptNumber >= 3 ? Math.round(words.length * 0.4) : 0;
+  return pool.map((w, i) => {
+    if (i < spellingCount) {
+      return { type: "spelling", word: w, key: `${w.es}-${i}` };
+    }
+    const typePool = ["zh2es", "es2zh", "audio2zh"];
+    const type = typePool[Math.floor(Math.random() * typePool.length)];
+    const distractorPool = words.filter((x) => x.es !== w.es);
+    const distractors = shuffle(distractorPool).slice(0, 3);
+    const options = shuffle([w, ...distractors]);
+    return { type, word: w, options, key: `${w.es}-${i}` };
+  });
+}
+
+// ===========================================================================
+// Inline icon wrappers already imported from lucide-react
+// ===========================================================================
+
+function SpanishVocab() {
+  useEffect(() => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href =
+      "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap";
+    document.head.appendChild(link);
+    return () => document.head.removeChild(link);
+  }, []);
+
+  const [mode, setMode] = useState("level");
+  const [level, setLevel] = useState("A1");
+  const [theme, setTheme] = useState("pronombres");
+  const [chapterIdx, setChapterIdx] = useState(0);
+  const [screen, setScreen] = useState("map"); // map | lesson | quiz | result
+  const [activeStage, setActiveStage] = useState(null); // { key, words, stageLabel }
+  const [progress, setProgress] = useState({}); // stageKey -> { plays, bestAccuracy, lastAccuracy }
+  const [pluralPopup, setPluralPopup] = useState(null); // word object or null
+  const [quizState, setQuizState] = useState(null);
+  const [resultData, setResultData] = useState(null);
+
+  const activeKey = mode === "level" ? level : theme;
+  const info = mode === "level" ? LEVEL_INFO[level] : THEME_INFO[theme];
+  const bank = mode === "level" ? WORD_BANK[level] : THEME_BANK[theme];
+  const stages = useMemo(() => chunkStages(bank), [bank]);
+  const chapters = useMemo(() => chunkChapters(stages), [stages]);
+  const currentChapter = chapters[Math.min(chapterIdx, chapters.length - 1)] || chapters[0];
+
+  const switchMode = (m) => {
+    setMode(m);
+    setChapterIdx(0);
+    setScreen("map");
+  };
+  const changeLevel = (l) => {
+    setLevel(l);
+    setChapterIdx(0);
+    setScreen("map");
+  };
+  const changeTheme = (t) => {
+    setTheme(t);
+    setChapterIdx(0);
+    setScreen("map");
+  };
+
+  const stageProgKey = (stageWords) => `${mode}:${activeKey}:${stageWords.map((w) => w.es).join(",").slice(0, 40)}`;
+
+  const enterStage = (stageWords, stageLabel) => {
+    const key = stageProgKey(stageWords);
+    setActiveStage({ key, words: stageWords, stageLabel });
+    setScreen("lesson");
+  };
+
+  const startQuiz = () => {
+    const prog = progress[activeStage.key];
+    const attemptNumber = (prog?.plays || 0) + 1;
+    const questions = buildQuestions(activeStage.words, attemptNumber);
+    setQuizState({
+      questions,
+      qIndex: 0,
+      correct: 0,
+      selectedIndex: null,
+      inputValue: "",
+      showFeedback: false,
+      attemptNumber,
+    });
+    setScreen("quiz");
+  };
+
+  const speak = (text) => {
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "es-ES";
+      window.speechSynthesis.speak(u);
+    } catch (e) {
+      /* speech synthesis unavailable */
+    }
+  };
+
+  const submitAnswer = (isCorrect) => {
+    setQuizState((prev) => ({
+      ...prev,
+      showFeedback: true,
+      correct: prev.correct + (isCorrect ? 1 : 0),
+      _wasCorrect: isCorrect,
+    }));
+  };
+
+  const chooseOption = (idx) => {
+    if (quizState.showFeedback) return;
+    const q = quizState.questions[quizState.qIndex];
+    const correctWord = q.word;
+    const chosen = q.options[idx];
+    const isCorrect = chosen.es === correctWord.es;
+    setQuizState((prev) => ({ ...prev, selectedIndex: idx }));
+    submitAnswer(isCorrect);
+  };
+
+  const submitSpelling = () => {
+    if (quizState.showFeedback) return;
+    const q = quizState.questions[quizState.qIndex];
+    const isCorrect = normalizeEs(quizState.inputValue) === normalizeEs(q.word.es);
+    submitAnswer(isCorrect);
+  };
+
+  const nextQuestion = () => {
+    const isLast = quizState.qIndex + 1 >= quizState.questions.length;
+    if (isLast) {
+      const total = quizState.questions.length;
+      const accuracy = Math.round((quizState.correct / total) * 100);
+      setProgress((prev) => {
+        const p = prev[activeStage.key] || { plays: 0, bestAccuracy: null };
+        return {
+          ...prev,
+          [activeStage.key]: {
+            plays: p.plays + 1,
+            bestAccuracy: p.bestAccuracy == null ? accuracy : Math.max(p.bestAccuracy, accuracy),
+            lastAccuracy: accuracy,
+          },
+        };
+      });
+      setResultData({
+        correct: quizState.correct,
+        total,
+        accuracy,
+        attemptNumber: quizState.attemptNumber,
+      });
+      setScreen("result");
+    } else {
+      setQuizState((prev) => ({
+        ...prev,
+        qIndex: prev.qIndex + 1,
+        selectedIndex: null,
+        inputValue: "",
+        showFeedback: false,
+      }));
+    }
+  };
+
+  const backToMap = () => {
+    setScreen("map");
+    setActiveStage(null);
+    setQuizState(null);
+    setResultData(null);
+  };
+
+  const replayStage = () => {
+    setScreen("lesson");
+    setQuizState(null);
+    setResultData(null);
+  };
+
+  // ---------------------------------------------------------------------
+  // Shared style helpers
+  // ---------------------------------------------------------------------
+  const TopBar = ({ title, onBack }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.7rem", padding: "1.5rem 1.25rem 1rem" }}>
+      <button
+        onClick={onBack}
+        style={{
+          background: "#25384A",
+          border: "none",
+          borderRadius: "9999px",
+          width: "2.2rem",
+          height: "2.2rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#F5EFE0",
+          cursor: "pointer",
+          flexShrink: 0,
+        }}
+      >
+        <ArrowLeft size={17} />
+      </button>
+      <h2
+        style={{
+          fontFamily: "'Fraunces', serif",
+          fontWeight: 600,
+          fontSize: "1.15rem",
+          color: "#F5EFE0",
+          margin: 0,
+        }}
+      >
+        {title}
+      </h2>
+    </div>
+  );
+
+  const GenderBadge = ({ word }) => {
+    if (!word.gender) return null;
+    const isM = word.gender === "m";
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: "0.68rem",
+          fontWeight: 600,
+          padding: "0.1rem 0.4rem",
+          borderRadius: "0.3rem",
+          background: isM ? "#DCE8EF" : "#F2DCE4",
+          color: isM ? "#3E6E8E" : "#A13A5A",
+          marginLeft: "0.4rem",
+        }}
+      >
+        {isM ? "陽性 el" : "陰性 la"}
+      </span>
+    );
+  };
+
+  // ---------------------------------------------------------------------
+  // Screen: MAP
+  // ---------------------------------------------------------------------
+  if (screen === "map") {
+    return (
+      <div style={{ minHeight: "100vh", background: "#1C2B3A", fontFamily: "'Inter', sans-serif", paddingBottom: "3rem" }}>
+        <div style={{ padding: "2.25rem 1.5rem 1.25rem" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "0.6rem" }}>
+            <BookOpenCheck size={22} color="#E8DFC8" strokeWidth={2} />
+            <h1
+              style={{
+                fontFamily: "'Fraunces', serif",
+                fontWeight: 600,
+                fontSize: "1.6rem",
+                color: "#F5EFE0",
+                letterSpacing: "-0.01em",
+                margin: 0,
+              }}
+            >
+              西文單字學習
+            </h1>
+          </div>
+          <p style={{ color: "#8FA0B3", fontSize: "0.85rem", marginTop: "0.35rem" }}>
+            選一個分級或主題,進入關卡地圖開始複習。
+          </p>
+        </div>
+
+        <div style={{ display: "flex", gap: "0.5rem", padding: "0 1.5rem 1rem" }}>
+          {[
+            { key: "level", label: "分級" },
+            { key: "theme", label: "主題" },
+          ].map((m) => {
+            const active = mode === m.key;
+            return (
+              <button
+                key={m.key}
+                onClick={() => switchMode(m.key)}
+                style={{
+                  flex: 1,
+                  padding: "0.6rem",
+                  borderRadius: "0.7rem",
+                  border: active ? "none" : "1px solid #3A4A5C",
+                  background: active ? "#F5EFE0" : "transparent",
+                  color: active ? "#22303F" : "#8FA0B3",
+                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                }}
+              >
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {mode === "level" && (
+          <div style={{ display: "flex", gap: "0.6rem", padding: "0 1.5rem 1.5rem", overflowX: "auto" }}>
+            {LEVELS.map((l) => {
+              const active = l === level;
+              const li = LEVEL_INFO[l];
+              return (
+                <button
+                  key={l}
+                  onClick={() => changeLevel(l)}
+                  style={{
+                    flexShrink: 0,
+                    width: "3.6rem",
+                    height: "3.6rem",
+                    borderRadius: "9999px",
+                    border: `2px dashed ${active ? li.color : "#3A4A5C"}`,
+                    background: active ? li.light : "transparent",
+                    color: active ? li.color : "#8FA0B3",
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontWeight: 600,
+                    fontSize: "0.95rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transform: active ? "rotate(-6deg)" : "rotate(0deg)",
+                    transition: "all 0.2s ease",
+                    cursor: "pointer",
+                  }}
+                >
+                  {l}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {mode === "theme" && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.55rem", padding: "0 1.5rem 1.5rem" }}>
+            {THEMES.map((t) => {
+              const active = t === theme;
+              const ti = THEME_INFO[t];
+              return (
+                <button
+                  key={t}
+                  onClick={() => changeTheme(t)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
+                    padding: "0.5rem 0.8rem",
+                    borderRadius: "9999px",
+                    border: `1.5px solid ${active ? ti.color : "#3A4A5C"}`,
+                    background: active ? ti.light : "transparent",
+                    color: active ? ti.color : "#8FA0B3",
+                    fontWeight: 600,
+                    fontSize: "0.78rem",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span style={{ fontSize: "0.95rem" }}>{ti.icon}</span>
+                  {ti.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Chapter tabs (only shown if more than 1 chapter exists) */}
+        {chapters.length > 1 && (
+          <div style={{ display: "flex", gap: "0.5rem", padding: "0 1.5rem 1rem", overflowX: "auto" }}>
+            {chapters.map((c) => {
+              const active = c.index === chapterIdx;
+              return (
+                <button
+                  key={c.index}
+                  onClick={() => setChapterIdx(c.index)}
+                  style={{
+                    flexShrink: 0,
+                    padding: "0.45rem 0.8rem",
+                    borderRadius: "0.6rem",
+                    border: `1px solid ${active ? info.color : "#3A4A5C"}`,
+                    background: active ? info.light : "transparent",
+                    color: active ? info.color : "#8FA0B3",
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  單字 {c.range}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Stage grid ("田" concept: each tile = a stage) */}
+        <div style={{ padding: "0.5rem 1.5rem 0" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: "0.7rem",
+            }}
+          >
+            {(currentChapter?.stages || []).map((stage) => {
+              const key = stageProgKey(stage.words);
+              const prog = progress[key];
+              const tier = masteryTier(prog?.bestAccuracy ?? null);
+              const wordStart = currentChapter.index * CHAPTERS_STAGE_COUNT * STAGE_SIZE + stage.index * STAGE_SIZE + 1;
+              const wordEnd = wordStart + stage.words.length - 1;
+              return (
+                <button
+                  key={stage.index}
+                  onClick={() => enterStage(stage.words, `${wordStart}-${wordEnd}`)}
+                  style={{
+                    background: prog ? info.light : "#25384A",
+                    border: `1.5px solid ${prog ? info.color : "#3A4A5C"}`,
+                    borderRadius: "0.85rem",
+                    padding: "0.75rem 0.5rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                    cursor: "pointer",
+                    position: "relative",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontWeight: 700,
+                      fontSize: "0.95rem",
+                      color: prog ? info.color : "#B8C4D0",
+                    }}
+                  >
+                    {wordStart}-{wordEnd}
+                  </span>
+                  <div style={{ display: "flex", gap: "0.1rem" }}>
+                    {[0, 1, 2].map((i) => (
+                      <Star
+                        key={i}
+                        size={11}
+                        fill={i < tier.stars ? tier.color : "none"}
+                        stroke={i < tier.stars ? tier.color : "#5C6B7A"}
+                      />
+                    ))}
+                  </div>
+                  <span style={{ fontSize: "0.62rem", color: prog ? "#5C6B7A" : "#8FA0B3" }}>
+                    {prog ? `玩過 ${prog.plays} 次` : "未挑戰"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Screen: LESSON (teach the 10 words before quiz)
+  // ---------------------------------------------------------------------
+  if (screen === "lesson" && activeStage) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#1C2B3A", fontFamily: "'Inter', sans-serif", paddingBottom: "6rem" }}>
+        <TopBar title={`${info.label} · 第 ${activeStage.stageLabel} 字`} onBack={backToMap} />
+        <div style={{ padding: "0 1.25rem", display: "flex", flexDirection: "column", gap: "0.7rem" }}>
+          {activeStage.words.map((w, i) => (
+            <div
+              key={i}
+              style={{
+                background: "#F5EFE0",
+                borderRadius: "0.9rem",
+                padding: "1rem 1.1rem",
+                position: "relative",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "0.3rem", flexWrap: "wrap" }}>
+                  <span
+                    style={{
+                      fontFamily: "'Fraunces', serif",
+                      fontStyle: "italic",
+                      fontWeight: 500,
+                      fontSize: "1.3rem",
+                      color: "#22303F",
+                    }}
+                  >
+                    {w.es}
+                  </span>
+                  <GenderBadge word={w} />
+                </div>
+                <div style={{ display: "flex", gap: "0.4rem" }}>
+                  {w.plural && (
+                    <button
+                      onClick={() => setPluralPopup(w)}
+                      style={{
+                        background: "none",
+                        border: "1px solid #D8CBA8",
+                        borderRadius: "9999px",
+                        width: "1.7rem",
+                        height: "1.7rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#8A7A5E",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <Info size={12} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => speak(w.es)}
+                    style={{
+                      background: "none",
+                      border: "1px solid #D8CBA8",
+                      borderRadius: "9999px",
+                      width: "1.7rem",
+                      height: "1.7rem",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#8A7A5E",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Volume2 size={12} />
+                  </button>
+                </div>
+              </div>
+              <div style={{ color: "#8A7A5E", fontSize: "0.75rem", marginTop: "0.15rem" }}>{w.pos}</div>
+              <div style={{ fontSize: "1rem", fontWeight: 600, color: "#22303F", marginTop: "0.5rem" }}>{w.zh}</div>
+              <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "#5C6B7A", fontStyle: "italic" }}>{w.ex}</div>
+              <div style={{ fontSize: "0.75rem", color: "#8A7A5E" }}>{w.exZh}</div>
+            </div>
+          ))}
+        </div>
+
+        <div
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding: "1rem 1.25rem 1.4rem",
+            background: "linear-gradient(to top, #1C2B3A 60%, transparent)",
+          }}
+        >
+          <button
+            onClick={startQuiz}
+            style={{
+              width: "100%",
+              padding: "0.9rem",
+              borderRadius: "0.8rem",
+              border: "none",
+              background: "#F5EFE0",
+              color: "#22303F",
+              fontWeight: 700,
+              fontSize: "0.95rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.4rem",
+              cursor: "pointer",
+            }}
+          >
+            <Play size={16} /> 開始測驗
+          </button>
+        </div>
+
+        {pluralPopup && (
+          <div
+            onClick={() => setPluralPopup(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.55)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "2rem",
+              zIndex: 50,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "#F5EFE0",
+                borderRadius: "1rem",
+                padding: "1.5rem",
+                width: "100%",
+                maxWidth: "20rem",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: "0.8rem", color: "#8A7A5E" }}>複數形式</div>
+              <div
+                style={{
+                  fontFamily: "'Fraunces', serif",
+                  fontStyle: "italic",
+                  fontWeight: 600,
+                  fontSize: "1.6rem",
+                  color: "#22303F",
+                  marginTop: "0.4rem",
+                }}
+              >
+                {pluralPopup.gender === "f" ? "las " : "los "}
+                {pluralPopup.plural}
+              </div>
+              <div style={{ fontSize: "0.75rem", color: "#5C6B7A", marginTop: "0.5rem" }}>
+                單數:{pluralPopup.gender === "f" ? "la " : "el "}
+                {pluralPopup.es}
+              </div>
+              {pluralPopup.note && (
+                <div style={{ fontSize: "0.72rem", color: "#B98A2E", marginTop: "0.4rem" }}>※ {pluralPopup.note}</div>
+              )}
+              <button
+                onClick={() => setPluralPopup(null)}
+                style={{
+                  marginTop: "1rem",
+                  width: "100%",
+                  padding: "0.55rem",
+                  borderRadius: "0.6rem",
+                  border: "none",
+                  background: "#22303F",
+                  color: "#F5EFE0",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                關閉
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Screen: QUIZ
+  // ---------------------------------------------------------------------
+  if (screen === "quiz" && quizState) {
+    const q = quizState.questions[quizState.qIndex];
+    const progressPct = Math.round((quizState.qIndex / quizState.questions.length) * 100);
+
+    let promptNode = null;
+    let optionsNode = null;
+
+    if (q.type === "zh2es") {
+      promptNode = (
+        <div style={{ fontSize: "1.5rem", fontWeight: 600, color: "#22303F" }}>{q.word.zh}</div>
+      );
+      optionsNode = q.options.map((opt, i) => {
+        const isCorrect = opt.es === q.word.es;
+        const isSelected = quizState.selectedIndex === i;
+        const showState = quizState.showFeedback && (isSelected || isCorrect);
+        return (
+          <OptionButton key={i} onClick={() => chooseOption(i)} showState={showState} isCorrect={isCorrect} isSelected={isSelected}>
+            {opt.es}
+          </OptionButton>
+        );
+      });
+    } else if (q.type === "es2zh") {
+      promptNode = (
+        <div>
+          <div style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic", fontWeight: 500, fontSize: "1.7rem", color: "#22303F" }}>
+            {q.word.es}
+          </div>
+          <div style={{ fontSize: "0.8rem", color: "#8A7A5E", marginTop: "0.2rem" }}>
+            {q.word.pos}
+            <GenderBadge word={q.word} />
+          </div>
+        </div>
+      );
+      optionsNode = q.options.map((opt, i) => {
+        const isCorrect = opt.es === q.word.es;
+        const isSelected = quizState.selectedIndex === i;
+        const showState = quizState.showFeedback && (isSelected || isCorrect);
+        return (
+          <OptionButton key={i} onClick={() => chooseOption(i)} showState={showState} isCorrect={isCorrect} isSelected={isSelected}>
+            {opt.zh}
+          </OptionButton>
+        );
+      });
+    } else if (q.type === "audio2zh") {
+      promptNode = (
+        <button
+          onClick={() => speak(q.word.es)}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "0.5rem",
+            background: "#E9DFC4",
+            border: "none",
+            borderRadius: "9999px",
+            width: "5rem",
+            height: "5rem",
+            justifyContent: "center",
+            margin: "0 auto",
+            cursor: "pointer",
+            color: "#8A7A5E",
+          }}
+        >
+          <Volume2 size={26} />
+        </button>
+      );
+      optionsNode = q.options.map((opt, i) => {
+        const isCorrect = opt.es === q.word.es;
+        const isSelected = quizState.selectedIndex === i;
+        const showState = quizState.showFeedback && (isSelected || isCorrect);
+        return (
+          <OptionButton key={i} onClick={() => chooseOption(i)} showState={showState} isCorrect={isCorrect} isSelected={isSelected}>
+            {opt.zh}
+          </OptionButton>
+        );
+      });
+    } else if (q.type === "spelling") {
+      promptNode = (
+        <div>
+          <div style={{ fontSize: "1.3rem", fontWeight: 600, color: "#22303F" }}>{q.word.zh}</div>
+          <div style={{ fontSize: "0.75rem", color: "#8A7A5E", marginTop: "0.2rem" }}>拼出西班牙文</div>
+        </div>
+      );
+      const isCorrect = quizState.showFeedback && normalizeEs(quizState.inputValue) === normalizeEs(q.word.es);
+      optionsNode = (
+        <div>
+          <input
+            type="text"
+            value={quizState.inputValue}
+            disabled={quizState.showFeedback}
+            onChange={(e) => setQuizState((prev) => ({ ...prev, inputValue: e.target.value }))}
+            placeholder="輸入西班牙文…"
+            style={{
+              width: "100%",
+              padding: "0.8rem 1rem",
+              borderRadius: "0.7rem",
+              border: `1.5px solid ${quizState.showFeedback ? (isCorrect ? "#4A6B49" : "#7A3A30") : "#3A4A5C"}`,
+              background: "#25384A",
+              color: "#F5EFE0",
+              fontSize: "1rem",
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+          {quizState.showFeedback && !isCorrect && (
+            <div style={{ marginTop: "0.5rem", fontSize: "0.85rem", color: "#E3B9AE" }}>
+              正確答案:<strong>{q.word.es}</strong>
+            </div>
+          )}
+          {!quizState.showFeedback && (
+            <button
+              onClick={submitSpelling}
+              style={{
+                marginTop: "0.8rem",
+                width: "100%",
+                padding: "0.75rem",
+                borderRadius: "0.7rem",
+                border: "none",
+                background: "#F5EFE0",
+                color: "#22303F",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              送出答案
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ minHeight: "100vh", background: "#1C2B3A", fontFamily: "'Inter', sans-serif" }}>
+        <TopBar title={`${info.label} · 測驗`} onBack={backToMap} />
+        <div style={{ padding: "0 1.25rem" }}>
+          <div style={{ height: "0.4rem", background: "#25384A", borderRadius: "9999px", overflow: "hidden" }}>
+            <div
+              style={{
+                height: "100%",
+                width: `${progressPct}%`,
+                background: info.color,
+                transition: "width 0.3s ease",
+              }}
+            />
+          </div>
+          <div style={{ fontSize: "0.72rem", color: "#5C6B7A", marginTop: "0.4rem" }}>
+            第 {quizState.qIndex + 1} / {quizState.questions.length} 題 · 第 {quizState.attemptNumber} 次挑戰
+            {quizState.attemptNumber >= 3 ? "(含拼寫題)" : ""}
+          </div>
+        </div>
+
+        <div style={{ padding: "1.5rem 1.25rem" }}>
+          <div
+            style={{
+              background: "#F5EFE0",
+              borderRadius: "1.1rem",
+              padding: "2rem 1.4rem",
+              minHeight: "9rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              marginBottom: "1.2rem",
+            }}
+          >
+            {promptNode}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>{optionsNode}</div>
+
+          {quizState.showFeedback && (
+            <button
+              onClick={nextQuestion}
+              style={{
+                marginTop: "1rem",
+                width: "100%",
+                padding: "0.8rem",
+                borderRadius: "0.75rem",
+                border: "none",
+                background: quizState._wasCorrect ? "#4A6B49" : "#7A3A30",
+                color: "#F5EFE0",
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.4rem",
+              }}
+            >
+              {quizState._wasCorrect ? <Check size={16} /> : <X size={16} />}
+              {quizState._wasCorrect ? "答對了!" : "答錯了"} · 下一題 →
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Screen: RESULT
+  // ---------------------------------------------------------------------
+  if (screen === "result" && resultData) {
+    const tier = masteryTier(resultData.accuracy);
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#1C2B3A",
+          fontFamily: "'Inter', sans-serif",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "2rem",
+        }}
+      >
+        <div
+          style={{
+            background: "#F5EFE0",
+            borderRadius: "1.2rem",
+            padding: "2.2rem 1.6rem",
+            width: "100%",
+            maxWidth: "22rem",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: "1.3rem", color: "#22303F" }}>
+            本關結算
+          </div>
+          <div style={{ marginTop: "1rem", display: "flex", justifyContent: "center", gap: "0.2rem" }}>
+            {[0, 1, 2].map((i) => (
+              <Star key={i} size={26} fill={i < tier.stars ? tier.color : "none"} stroke={i < tier.stars ? tier.color : "#D8CBA8"} />
+            ))}
+          </div>
+          <div style={{ fontSize: "0.9rem", color: tier.color, fontWeight: 700, marginTop: "0.4rem" }}>{tier.label}</div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.6rem", marginTop: "1.4rem" }}>
+            {[
+              { label: "答對", value: `${resultData.correct}/${resultData.total}` },
+              { label: "正確率", value: `${resultData.accuracy}%` },
+              { label: "第幾次挑戰", value: resultData.attemptNumber },
+            ].map((s) => (
+              <div key={s.label} style={{ background: "#EFE6D0", borderRadius: "0.7rem", padding: "0.7rem 0.4rem" }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "1.05rem", color: "#22303F" }}>
+                  {s.value}
+                </div>
+                <div style={{ fontSize: "0.62rem", color: "#8A7A5E", marginTop: "0.1rem" }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={replayStage}
+            style={{
+              marginTop: "1.6rem",
+              width: "100%",
+              padding: "0.8rem",
+              borderRadius: "0.75rem",
+              border: "none",
+              background: "#22303F",
+              color: "#F5EFE0",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.4rem",
+            }}
+          >
+            <RotateCcw size={15} /> 再玩一次
+          </button>
+          <button
+            onClick={backToMap}
+            style={{
+              marginTop: "0.6rem",
+              width: "100%",
+              padding: "0.8rem",
+              borderRadius: "0.75rem",
+              border: "1px solid #D8CBA8",
+              background: "transparent",
+              color: "#8A7A5E",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            返回關卡地圖
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function OptionButton({ children, onClick, showState, isCorrect, isSelected }) {
+  let bg = "#25384A";
+  let border = "#3A4A5C";
+  let color = "#F5EFE0";
+  if (showState) {
+    if (isCorrect) {
+      bg = "#3E5A3D";
+      border = "#4A6B49";
+    } else if (isSelected) {
+      bg = "#5A3730";
+      border = "#7A3A30";
+    }
+  }
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        textAlign: "left",
+        padding: "0.85rem 1rem",
+        borderRadius: "0.75rem",
+        border: `1.5px solid ${border}`,
+        background: bg,
+        color,
+        fontSize: "0.95rem",
+        fontWeight: 500,
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+const rootEl = document.getElementById("root");
+ReactDOM.createRoot(rootEl).render(React.createElement(SpanishVocab));
+
+</script>
+</body>
+</html>
