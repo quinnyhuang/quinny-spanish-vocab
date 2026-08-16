@@ -124,6 +124,41 @@ const CHAPTERS_STAGE_COUNT = 10; // stages per chapter (大關) -> 100 words/cha
 // list split into 1000/2000/3000...). Content is currently smaller, so most
 // levels will only render a single chapter for now.
 
+// ---------------------------------------------------------------------------
+// Spaced-repetition config
+// ---------------------------------------------------------------------------
+// After a stage is first completed ("Day 1"), the app reminds the learner to
+// come back and review on Day 2, Day 3, Day 7 and Day 14 (offsets below, in
+// days, counted from the Day-1 completion date). This is a fixed-interval
+// schedule (not a full SM-2 algorithm) intentionally kept simple so it's easy
+// to reason about and to reuse for the mistake-book cycle below.
+const SRS_SCHEDULE = [2, 3, 7, 14];
+// Reminders are shown only inside the app (a badge on the stage tile) when it
+// is opened on/after the due date — this is a static, backend-less HTML file
+// so there is no way to reliably push notifications while the app is closed.
+const MISTAKE_INFO = { label: "錯題本", color: "#C0392B", light: "#F5D9D4" };
+const LOCAL_STORAGE_KEY = "esVocabApp.v1";
+
+// ---------------------------------------------------------------------------
+// App info / version (shown on the "說明" screen)
+// ---------------------------------------------------------------------------
+const APP_MAKER = "Quinny";
+const APP_VERSION = "v4.0.0";
+const APP_UPDATED = "2026-08-16";
+// Add a new entry to the TOP of this array whenever you ship a new version.
+const CHANGELOG = [
+  {
+    version: "v4.0.0",
+    date: "2026-08-16",
+    notes: "新增間隔重複複習提醒(第2/3/7/14天)、錯題本與錯題關卡(答錯自動收錄、循環複習、答對畢業)、App 說明頁。",
+  },
+  {
+    version: "v3.0.0 及之前",
+    date: "—",
+    notes: "分級(A1–C1)與主題詞彙、學習卡片、四種測驗題型(中譯西/西譯中/聽音辨義/拼寫)、關卡地圖與星級評分。詳細版本歷史未記錄。",
+  },
+];
+
 // ===========================================================================
 // Data: CEFR-leveled Spanish vocabulary
 // ===========================================================================
@@ -466,6 +501,37 @@ function masteryTier(bestAccuracy) {
   return { label: "尚未熟悉", stars: 1, color: "#A13A2F" };
 }
 
+// ---------------------------------------------------------------------------
+// Spaced-repetition helpers
+// ---------------------------------------------------------------------------
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function addDaysStr(dateStr, days) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Given an SRS record { day1Date, stepIndex }, figure out whether a review is
+// currently due. stepIndex points at the NEXT pending review in SRS_SCHEDULE
+// (0 = Day 2, 1 = Day 3, 2 = Day 7, 3 = Day 14). Once stepIndex reaches
+// SRS_SCHEDULE.length, the whole Day-1→Day-14 cycle for that record is done.
+function stageReviewStatus(rec) {
+  if (!rec) return { state: "new" };
+  if (rec.stepIndex >= SRS_SCHEDULE.length) return { state: "done" };
+  const dueDate = addDaysStr(rec.day1Date, SRS_SCHEDULE[rec.stepIndex]);
+  return { state: todayStr() >= dueDate ? "due" : "waiting", dueDate, stepIndex: rec.stepIndex };
+}
+
+function chunkArray(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
 function buildQuestions(words, attemptNumber, fullPool) {
   const pool = shuffle(words);
   const spellingCount = attemptNumber >= 3 ? Math.round(words.length * 0.4) : 0;
@@ -504,19 +570,62 @@ function SpanishVocab() {
   const [level, setLevel] = useState("A1");
   const [theme, setTheme] = useState("pronombres");
   const [chapterIdx, setChapterIdx] = useState(0);
-  const [screen, setScreen] = useState("map"); // map | lesson | quiz | result
-  const [activeStage, setActiveStage] = useState(null); // { key, words, stageLabel }
-  const [progress, setProgress] = useState({}); // stageKey -> { plays, bestAccuracy, lastAccuracy }
+  const [screen, setScreen] = useState("map"); // map | lesson | quiz | result | info
+  const [activeStage, setActiveStage] = useState(null); // { key, words, stageLabel, kind }
   const [pluralPopup, setPluralPopup] = useState(null); // word object or null
   const [quizState, setQuizState] = useState(null);
   const [resultData, setResultData] = useState(null);
 
-  const activeKey = mode === "level" ? level : theme;
-  const info = mode === "level" ? LEVEL_INFO[level] : THEME_INFO[theme];
-  const bank = mode === "level" ? WORD_BANK[level] : THEME_BANK[theme];
+  // -----------------------------------------------------------------------
+  // Persisted state: quiz progress, spaced-repetition schedule, mistake book.
+  // Stored in this browser's localStorage only (no server/sync) so progress
+  // survives closing the tab / reopening the app, but is lost if the user
+  // clears browser data or switches devices/browsers.
+  // -----------------------------------------------------------------------
+  const [savedState] = useState(() => {
+    try {
+      const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+  const [progress, setProgress] = useState(savedState.progress || {}); // stageKey -> { plays, bestAccuracy, lastAccuracy }
+  const [srs, setSrs] = useState(savedState.srs || {}); // stageKey -> { day1Date, stepIndex }
+  const [mistakes, setMistakes] = useState(savedState.mistakes || {}); // es -> { word, sourceLabel, day1Date, stepIndex, cycles }
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ progress, srs, mistakes }));
+    } catch (e) {
+      /* localStorage unavailable (private mode / storage full) — progress just won't persist */
+    }
+  }, [progress, srs, mistakes]);
+
+  const activeKey = mode === "level" ? level : mode === "theme" ? theme : "mistake";
+  const info = mode === "level" ? LEVEL_INFO[level] : mode === "theme" ? THEME_INFO[theme] : MISTAKE_INFO;
+  const bank = mode === "level" ? WORD_BANK[level] : mode === "theme" ? THEME_BANK[theme] : [];
   const stages = useMemo(() => chunkStages(bank), [bank]);
   const chapters = useMemo(() => chunkChapters(stages), [stages]);
   const currentChapter = chapters[Math.min(chapterIdx, chapters.length - 1)] || chapters[0];
+
+  // -----------------------------------------------------------------------
+  // Mistake-book derived data
+  // -----------------------------------------------------------------------
+  const mistakeList = useMemo(
+    () => Object.entries(mistakes).map(([es, rec]) => ({ es, ...rec })),
+    [mistakes]
+  );
+  const dueMistakeList = useMemo(
+    () => mistakeList.filter((m) => stageReviewStatus(m).state === "due"),
+    [mistakeList]
+  );
+  const mistakeChunks = useMemo(() => chunkArray(dueMistakeList, STAGE_SIZE), [dueMistakeList]);
+  const nextMistakeDueDate = useMemo(() => {
+    if (mistakeList.length === 0) return null;
+    const dates = mistakeList.map((m) => stageReviewStatus(m).dueDate).filter(Boolean).sort();
+    return dates.length ? dates[0] : null;
+  }, [mistakeList]);
 
   const switchMode = (m) => {
     setMode(m);
@@ -538,14 +647,22 @@ function SpanishVocab() {
 
   const enterStage = (stageWords, stageLabel) => {
     const key = stageProgKey(stageWords);
-    setActiveStage({ key, words: stageWords, stageLabel });
+    setActiveStage({ key, words: stageWords, stageLabel, kind: "stage" });
+    setScreen("lesson");
+  };
+
+  const enterMistakeReview = (chunk, idx) => {
+    const words = chunk.map((m) => m.word);
+    const key = `mistake-review:${todayStr()}:${idx}`;
+    setActiveStage({ key, words, stageLabel: `錯題複習 ${idx + 1}`, kind: "mistake" });
     setScreen("lesson");
   };
 
   const startQuiz = () => {
     const prog = progress[activeStage.key];
     const attemptNumber = (prog?.plays || 0) + 1;
-    const questions = buildQuestions(activeStage.words, attemptNumber, bank);
+    const distractorPool = activeStage.kind === "mistake" ? Object.values(mistakes).map((m) => m.word) : bank;
+    const questions = buildQuestions(activeStage.words, attemptNumber, distractorPool);
     setQuizState({
       questions,
       qIndex: 0,
@@ -554,6 +671,7 @@ function SpanishVocab() {
       inputValue: "",
       showFeedback: false,
       attemptNumber,
+      wrongEs: [],
     });
     setScreen("quiz");
   };
@@ -569,12 +687,16 @@ function SpanishVocab() {
   };
 
   const submitAnswer = (isCorrect) => {
-    setQuizState((prev) => ({
-      ...prev,
-      showFeedback: true,
-      correct: prev.correct + (isCorrect ? 1 : 0),
-      _wasCorrect: isCorrect,
-    }));
+    setQuizState((prev) => {
+      const q = prev.questions[prev.qIndex];
+      return {
+        ...prev,
+        showFeedback: true,
+        correct: prev.correct + (isCorrect ? 1 : 0),
+        _wasCorrect: isCorrect,
+        wrongEs: isCorrect ? prev.wrongEs : [...(prev.wrongEs || []), q.word.es],
+      };
+    });
   };
 
   const chooseOption = (idx) => {
@@ -616,17 +738,83 @@ function SpanishVocab() {
     if (isLast) {
       const total = quizState.questions.length;
       const accuracy = Math.round((quizState.correct / total) * 100);
-      setProgress((prev) => {
-        const p = prev[activeStage.key] || { plays: 0, bestAccuracy: null };
-        return {
-          ...prev,
-          [activeStage.key]: {
-            plays: p.plays + 1,
-            bestAccuracy: p.bestAccuracy == null ? accuracy : Math.max(p.bestAccuracy, accuracy),
-            lastAccuracy: accuracy,
-          },
-        };
-      });
+      const wrongEs = quizState.wrongEs || [];
+
+      if (activeStage.kind === "mistake") {
+        // This session is a scheduled review of words already in the mistake
+        // book. Advance each reviewed word's own 2/3/7/14-day cycle. Only the
+        // FINAL check-in of that cycle (equivalent to "Day 14") decides the
+        // outcome: still wrong → stays in the mistake book and the cycle
+        // restarts from today; correct → the word graduates and is removed.
+        const updatedMistakes = { ...mistakes };
+        activeStage.words.forEach((w) => {
+          const rec = updatedMistakes[w.es];
+          if (!rec) return;
+          const wasWrong = wrongEs.includes(w.es);
+          const newStepIndex = rec.stepIndex + 1;
+          if (newStepIndex >= SRS_SCHEDULE.length) {
+            if (wasWrong) {
+              updatedMistakes[w.es] = { ...rec, day1Date: todayStr(), stepIndex: 0, cycles: (rec.cycles || 0) + 1 };
+            } else {
+              delete updatedMistakes[w.es];
+            }
+          } else {
+            updatedMistakes[w.es] = { ...rec, stepIndex: newStepIndex };
+          }
+        });
+        setMistakes(updatedMistakes);
+      } else {
+        setProgress((prev) => {
+          const p = prev[activeStage.key] || { plays: 0, bestAccuracy: null };
+          return {
+            ...prev,
+            [activeStage.key]: {
+              plays: p.plays + 1,
+              bestAccuracy: p.bestAccuracy == null ? accuracy : Math.max(p.bestAccuracy, accuracy),
+              lastAccuracy: accuracy,
+            },
+          };
+        });
+
+        // Spaced-repetition bookkeeping for this stage.
+        const rec = srs[activeStage.key];
+        if (!rec) {
+          // First-ever completion of this stage = "Day 1". Kick off the
+          // 2/3/7/14-day review schedule from today.
+          setSrs((prev) => ({ ...prev, [activeStage.key]: { day1Date: todayStr(), stepIndex: 0 } }));
+        } else {
+          const status = stageReviewStatus(rec);
+          // Only a completion made ON/AFTER the scheduled due date consumes
+          // the review slot — replaying early is just extra practice and
+          // doesn't fast-forward the schedule.
+          if (status.state === "due") {
+            const newStepIndex = rec.stepIndex + 1;
+            setSrs((prev) => ({ ...prev, [activeStage.key]: { ...rec, stepIndex: newStepIndex } }));
+            // Day-14 review just happened — anything still wrong today goes
+            // into the mistake book and starts its own 2/3/7/14 cycle.
+            if (newStepIndex >= SRS_SCHEDULE.length && wrongEs.length > 0) {
+              setMistakes((prev) => {
+                const next = { ...prev };
+                wrongEs.forEach((es) => {
+                  const wordObj = activeStage.words.find((w) => w.es === es);
+                  if (!wordObj) return;
+                  if (!next[es]) {
+                    next[es] = {
+                      word: wordObj,
+                      sourceLabel: `${info.label} · ${activeStage.stageLabel}`,
+                      day1Date: todayStr(),
+                      stepIndex: 0,
+                      cycles: 0,
+                    };
+                  }
+                });
+                return next;
+              });
+            }
+          }
+        }
+      }
+
       setResultData({
         correct: quizState.correct,
         total,
@@ -725,20 +913,41 @@ function SpanishVocab() {
     return (
       <div style={{ minHeight: "100vh", background: "#FDF6EC", fontFamily: "'Inter', sans-serif", paddingBottom: "3rem" }}>
         <div style={{ padding: "2.25rem 1.5rem 1.25rem" }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: "0.6rem" }}>
-            <BookOpenCheck size={22} color="#E07A5F" strokeWidth={2} />
-            <h1
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "0.6rem" }}>
+              <BookOpenCheck size={22} color="#E07A5F" strokeWidth={2} />
+              <h1
+                style={{
+                  fontFamily: "'Fraunces', serif",
+                  fontWeight: 600,
+                  fontSize: "1.6rem",
+                  color: "#3A2E1F",
+                  letterSpacing: "-0.01em",
+                  margin: 0,
+                }}
+              >
+                西文單字學習
+              </h1>
+            </div>
+            <button
+              onClick={() => setScreen("info")}
+              aria-label="關於本 App"
               style={{
-                fontFamily: "'Fraunces', serif",
-                fontWeight: 600,
-                fontSize: "1.6rem",
-                color: "#3A2E1F",
-                letterSpacing: "-0.01em",
-                margin: 0,
+                background: "#F9F1E6",
+                border: "1px solid #ECDFCA",
+                borderRadius: "9999px",
+                width: "2.1rem",
+                height: "2.1rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#8A7A5E",
+                cursor: "pointer",
+                flexShrink: 0,
               }}
             >
-              西文單字學習
-            </h1>
+              <Info size={16} />
+            </button>
           </div>
           <p style={{ color: "#A99B85", fontSize: "0.85rem", marginTop: "0.35rem" }}>
             選一個分級或主題,進入關卡地圖開始複習。
@@ -749,13 +958,16 @@ function SpanishVocab() {
           {[
             { key: "level", label: "分級" },
             { key: "theme", label: "主題" },
+            { key: "mistake", label: "錯題本" },
           ].map((m) => {
             const active = mode === m.key;
+            const showDueDot = m.key === "mistake" && dueMistakeList.length > 0;
             return (
               <button
                 key={m.key}
                 onClick={() => switchMode(m.key)}
                 style={{
+                  position: "relative",
                   flex: 1,
                   padding: "0.6rem",
                   borderRadius: "0.7rem",
@@ -768,6 +980,19 @@ function SpanishVocab() {
                 }}
               >
                 {m.label}
+                {showDueDot && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: "0.3rem",
+                      right: "0.5rem",
+                      width: "0.4rem",
+                      height: "0.4rem",
+                      borderRadius: "9999px",
+                      background: active ? "#FDF6EC" : "#C0392B",
+                    }}
+                  />
+                )}
               </button>
             );
           })}
@@ -841,7 +1066,7 @@ function SpanishVocab() {
         )}
 
         {/* Chapter tabs (only shown if more than 1 chapter exists) */}
-        {chapters.length > 1 && (
+        {mode !== "mistake" && chapters.length > 1 && (
           <div style={{ display: "flex", gap: "0.5rem", padding: "0 1.5rem 1rem", overflowX: "auto" }}>
             {chapters.map((c) => {
               const active = c.index === chapterIdx;
@@ -871,69 +1096,186 @@ function SpanishVocab() {
         )}
 
         {/* Stage grid ("田" concept: each tile = a stage) */}
-        <div style={{ padding: "0.5rem 1.5rem 0" }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: "0.7rem",
-            }}
-          >
-            {(currentChapter?.stages || []).map((stage, localIdx) => {
-              const key = stageProgKey(stage.words);
-              const prog = progress[key];
-              const tier = masteryTier(prog?.bestAccuracy ?? null);
-              // Use localIdx (position within THIS chapter) rather than
-              // stage.index (position across the whole word bank) — using
-              // the global index here double-counted the chapter offset
-              // once chapters beyond the first one exist (100+ words).
-              const wordStart = currentChapter.index * CHAPTERS_STAGE_COUNT * STAGE_SIZE + localIdx * STAGE_SIZE + 1;
-              const wordEnd = wordStart + stage.words.length - 1;
-              return (
-                <button
-                  key={stage.index}
-                  onClick={() => enterStage(stage.words, `${wordStart}-${wordEnd}`)}
-                  style={{
-                    background: prog ? info.light : "#F9F1E6",
-                    border: `1.5px solid ${prog ? info.color : "#ECDFCA"}`,
-                    borderRadius: "0.85rem",
-                    padding: "0.75rem 0.5rem",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: "0.3rem",
-                    cursor: "pointer",
-                    position: "relative",
-                  }}
-                >
-                  <span
+        {mode !== "mistake" && (
+          <div style={{ padding: "0.5rem 1.5rem 0" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: "0.7rem",
+              }}
+            >
+              {(currentChapter?.stages || []).map((stage, localIdx) => {
+                const key = stageProgKey(stage.words);
+                const prog = progress[key];
+                const tier = masteryTier(prog?.bestAccuracy ?? null);
+                const reviewStatus = stageReviewStatus(srs[key]);
+                const isDue = reviewStatus.state === "due";
+                // Use localIdx (position within THIS chapter) rather than
+                // stage.index (position across the whole word bank) — using
+                // the global index here double-counted the chapter offset
+                // once chapters beyond the first one exist (100+ words).
+                const wordStart = currentChapter.index * CHAPTERS_STAGE_COUNT * STAGE_SIZE + localIdx * STAGE_SIZE + 1;
+                const wordEnd = wordStart + stage.words.length - 1;
+                return (
+                  <button
+                    key={stage.index}
+                    onClick={() => enterStage(stage.words, `${wordStart}-${wordEnd}`)}
                     style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontWeight: 700,
-                      fontSize: "0.95rem",
-                      color: prog ? info.color : "#C9B89E",
+                      background: prog ? info.light : "#F9F1E6",
+                      border: `1.5px solid ${isDue ? "#C0392B" : prog ? info.color : "#ECDFCA"}`,
+                      borderRadius: "0.85rem",
+                      padding: "0.75rem 0.5rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: "0.3rem",
+                      cursor: "pointer",
+                      position: "relative",
                     }}
                   >
-                    {wordStart}-{wordEnd}
-                  </span>
-                  <div style={{ display: "flex", gap: "0.1rem" }}>
-                    {[0, 1, 2].map((i) => (
-                      <Star
-                        key={i}
-                        size={11}
-                        fill={i < tier.stars ? tier.color : "none"}
-                        stroke={i < tier.stars ? tier.color : "#A99B85"}
+                    {isDue && (
+                      <span
+                        title="該複習了"
+                        style={{
+                          position: "absolute",
+                          top: "0.4rem",
+                          right: "0.4rem",
+                          width: "0.5rem",
+                          height: "0.5rem",
+                          borderRadius: "9999px",
+                          background: "#C0392B",
+                        }}
                       />
-                    ))}
-                  </div>
-                  <span style={{ fontSize: "0.62rem", color: prog ? "#A99B85" : "#A99B85" }}>
-                    {prog ? `玩過 ${prog.plays} 次` : "未挑戰"}
-                  </span>
-                </button>
-              );
-            })}
+                    )}
+                    <span
+                      style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontWeight: 700,
+                        fontSize: "0.95rem",
+                        color: prog ? info.color : "#C9B89E",
+                      }}
+                    >
+                      {wordStart}-{wordEnd}
+                    </span>
+                    <div style={{ display: "flex", gap: "0.1rem" }}>
+                      {[0, 1, 2].map((i) => (
+                        <Star
+                          key={i}
+                          size={11}
+                          fill={i < tier.stars ? tier.color : "none"}
+                          stroke={i < tier.stars ? tier.color : "#A99B85"}
+                        />
+                      ))}
+                    </div>
+                    <span style={{ fontSize: "0.62rem", color: isDue ? "#C0392B" : "#A99B85", fontWeight: isDue ? 700 : 400 }}>
+                      {isDue ? "🔔 該複習了" : prog ? `玩過 ${prog.plays} 次` : "未挑戰"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Mistake book ("錯題本") */}
+        {mode === "mistake" && (
+          <div style={{ padding: "0.5rem 1.5rem 0" }}>
+            <div style={{ display: "flex", gap: "0.6rem", marginBottom: "1.1rem" }}>
+              <div style={{ flex: 1, background: "#F9F1E6", borderRadius: "0.8rem", padding: "0.7rem 0.6rem", textAlign: "center" }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "1.1rem", color: "#3A2E1F" }}>
+                  {mistakeList.length}
+                </div>
+                <div style={{ fontSize: "0.65rem", color: "#8A7A5E", marginTop: "0.1rem" }}>錯題本總數</div>
+              </div>
+              <div style={{ flex: 1, background: dueMistakeList.length > 0 ? MISTAKE_INFO.light : "#F9F1E6", borderRadius: "0.8rem", padding: "0.7rem 0.6rem", textAlign: "center" }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "1.1rem", color: dueMistakeList.length > 0 ? MISTAKE_INFO.color : "#3A2E1F" }}>
+                  {dueMistakeList.length}
+                </div>
+                <div style={{ fontSize: "0.65rem", color: "#8A7A5E", marginTop: "0.1rem" }}>今日待複習</div>
+              </div>
+            </div>
+
+            {dueMistakeList.length === 0 ? (
+              <div style={{ background: "#F9F1E6", borderRadius: "0.9rem", padding: "1.3rem 1.1rem", fontSize: "0.82rem", color: "#8A7A5E", lineHeight: 1.6 }}>
+                {mistakeList.length === 0
+                  ? "太棒了,目前沒有任何錯題!當你在「分級」或「主題」關卡完成第 14 天複習時,答錯的單字才會自動收錄進這裡。"
+                  : `目前沒有錯題需要複習。錯題本裡共有 ${mistakeList.length} 個字在排程中,下一次複習日期是 ${nextMistakeDueDate}。`}
+              </div>
+            ) : (
+              <React.Fragment>
+                <p style={{ fontSize: "0.78rem", color: "#8A7A5E", marginTop: 0, marginBottom: "0.7rem" }}>
+                  以下是今天到期的錯題複習關卡,每關最多 10 個字:
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.7rem" }}>
+                  {mistakeChunks.map((chunk, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => enterMistakeReview(chunk, idx)}
+                      style={{
+                        background: MISTAKE_INFO.light,
+                        border: `1.5px solid ${MISTAKE_INFO.color}`,
+                        borderRadius: "0.85rem",
+                        padding: "0.75rem 0.5rem",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "0.3rem",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "0.85rem", color: MISTAKE_INFO.color }}>
+                        錯題 {idx + 1}
+                      </span>
+                      <span style={{ fontSize: "0.62rem", color: "#8A7A5E" }}>{chunk.length} 個字</span>
+                    </button>
+                  ))}
+                </div>
+              </React.Fragment>
+            )}
+
+            {mistakeList.length > 0 && (
+              <div style={{ marginTop: "1.4rem" }}>
+                <div style={{ fontSize: "0.78rem", color: "#8A7A5E", fontWeight: 600, marginBottom: "0.5rem" }}>
+                  錯題清單({mistakeList.length})
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                  {mistakeList
+                    .slice()
+                    .sort((a, b) => (stageReviewStatus(a).dueDate || "").localeCompare(stageReviewStatus(b).dueDate || ""))
+                    .map((m) => {
+                      const status = stageReviewStatus(m);
+                      const due = status.state === "due";
+                      return (
+                        <div
+                          key={m.es}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            background: "#F9F1E6",
+                            borderRadius: "0.6rem",
+                            padding: "0.5rem 0.75rem",
+                            fontSize: "0.78rem",
+                          }}
+                        >
+                          <div>
+                            <span style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic", fontWeight: 600, color: "#3A2E1F" }}>
+                              {m.word.es}
+                            </span>
+                            <span style={{ color: "#8A7A5E", marginLeft: "0.4rem" }}>{m.word.zh}</span>
+                          </div>
+                          <span style={{ color: due ? "#C0392B" : "#A99B85", fontWeight: due ? 700 : 400 }}>
+                            {due ? "🔔 待複習" : `下次 ${status.dueDate}`}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -942,9 +1284,11 @@ function SpanishVocab() {
   // Screen: LESSON (teach the 10 words before quiz)
   // ---------------------------------------------------------------------
   if (screen === "lesson" && activeStage) {
+    const lessonTitle =
+      activeStage.kind === "mistake" ? activeStage.stageLabel : `${info.label} · 第 ${activeStage.stageLabel} 字`;
     return (
       <div style={{ minHeight: "100vh", background: "#FDF6EC", fontFamily: "'Inter', sans-serif", paddingBottom: "6rem" }}>
-        <TopBar title={`${info.label} · 第 ${activeStage.stageLabel} 字`} onBack={backToMap} />
+        <TopBar title={lessonTitle} onBack={backToMap} />
         <div style={{ padding: "0 1.25rem", display: "flex", flexDirection: "column", gap: "0.7rem" }}>
           {activeStage.words.map((w, i) => (
             <div
@@ -1131,6 +1475,7 @@ function SpanishVocab() {
   if (screen === "quiz" && quizState) {
     const q = quizState.questions[quizState.qIndex];
     const progressPct = Math.round((quizState.qIndex / quizState.questions.length) * 100);
+    const quizTitle = activeStage.kind === "mistake" ? `${activeStage.stageLabel} · 測驗` : `${info.label} · 測驗`;
 
     let promptNode = null;
     let optionsNode = null;
@@ -1286,7 +1631,7 @@ function SpanishVocab() {
 
     return (
       <div style={{ minHeight: "100vh", background: "#FDF6EC", fontFamily: "'Inter', sans-serif" }}>
-        <TopBar title={`${info.label} · 測驗`} onBack={backToMap} />
+        <TopBar title={quizTitle} onBack={backToMap} />
         <div style={{ padding: "0 1.25rem" }}>
           <div style={{ height: "0.4rem", background: "#F9F1E6", borderRadius: "9999px", overflow: "hidden" }}>
             <div
@@ -1440,6 +1785,77 @@ function SpanishVocab() {
           >
             返回關卡地圖
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Screen: INFO (App 說明 / 關於)
+  // ---------------------------------------------------------------------
+  if (screen === "info") {
+    const Section = ({ title, children }) => (
+      <div style={{ background: "#F9F1E6", borderRadius: "0.9rem", padding: "1.1rem 1.15rem", marginBottom: "0.9rem" }}>
+        <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: "0.95rem", color: "#3A2E1F", marginBottom: "0.5rem" }}>
+          {title}
+        </div>
+        <div style={{ fontSize: "0.8rem", color: "#5C4E3A", lineHeight: 1.75 }}>{children}</div>
+      </div>
+    );
+    return (
+      <div style={{ minHeight: "100vh", background: "#FDF6EC", fontFamily: "'Inter', sans-serif", paddingBottom: "3rem" }}>
+        <TopBar title="關於本 App" onBack={backToMap} />
+        <div style={{ padding: "0 1.25rem" }}>
+          <Section title="📖 這是什麼">
+            西文單字學習是一款單頁、純前端的西班牙文單字練習 App。透過「分級(CEFR
+            A1–C1)」與「主題」兩種角度收錄單字,每 10 個字一個小關卡,搭配學習卡片與四種測驗題型(中譯西、西譯中、聽音辨義、拼寫),
+            幫助你循序漸進地記憶單字。
+          </Section>
+
+          <Section title="🔁 間隔重複複習">
+            每個小關卡第一次學習並完成測驗後(視為「第 1 天」),App
+            會在關卡地圖上用紅點與文字標記提醒你:第 2 天、第 3 天、第 7 天、第 14 天各回來複習一次(在到期日「當天或之後」重新測驗該關卡才算完成一次複習,提前重玩不會影響排程)。
+            <br />
+            <br />
+            這個提醒只會顯示在 App 畫面裡(關卡會標示「🔔
+            該複習了」),因為這是純前端的靜態網頁、沒有伺服器,無法在你關掉分頁後主動推播通知——請養成定期打開 App 看看有沒有關卡該複習的習慣。
+          </Section>
+
+          <Section title="📕 錯題本與錯題關卡">
+            當某個關卡「第 14 天」的複習測驗中答錯某些字,那些字會自動被收錄進「錯題本」,並出現在「錯題本」分頁裡,以每
+            10 個字一組形成獨立的錯題複習關卡。
+            <br />
+            <br />
+            錯題關卡本身也依照同樣的第 2 / 3 / 7 / 14 天規律提醒複習;如果一個錯題在它自己的第 14
+            天複習時終於答對了,就會從錯題本「畢業」移除,不再出現;如果仍然答錯,則會重新從今天開始計算下一輪 2 / 3 / 7 /
+            14 天循環,直到真正記熟為止。
+          </Section>
+
+          <Section title="💾 資料儲存">
+            所有學習進度、複習排程與錯題本,都只儲存在你目前使用的這個瀏覽器裡(localStorage),不會上傳到任何伺服器。
+            <br />
+            <br />
+            換一台裝置、換一個瀏覽器,或清除瀏覽器資料/隱私瀏覽模式,都會讓紀錄消失,請留意;目前版本沒有雲端同步或備份機制。
+          </Section>
+
+          <Section title="🛠️ 版本資訊">
+            目前版本:<strong>{APP_VERSION}</strong>
+            <br />
+            更新日期:{APP_UPDATED}
+            <br />
+            製作者:{APP_MAKER}
+          </Section>
+
+          <Section title="📝 更新紀錄">
+            {CHANGELOG.map((c, i) => (
+              <div key={i} style={{ marginBottom: i < CHANGELOG.length - 1 ? "0.7rem" : 0 }}>
+                <div style={{ fontWeight: 700, color: "#3A2E1F" }}>
+                  {c.version} <span style={{ fontWeight: 400, color: "#A99B85" }}>· {c.date}</span>
+                </div>
+                <div>{c.notes}</div>
+              </div>
+            ))}
+          </Section>
         </div>
       </div>
     );
