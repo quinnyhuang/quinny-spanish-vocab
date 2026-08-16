@@ -143,10 +143,15 @@ const LOCAL_STORAGE_KEY = "esVocabApp.v1";
 // App info / version (shown on the "說明" screen)
 // ---------------------------------------------------------------------------
 const APP_MAKER = "Quinny";
-const APP_VERSION = "v4.3.0";
+const APP_VERSION = "v4.3.1";
 const APP_UPDATED = "2026-08-16";
 // Add a new entry to the TOP of this array whenever you ship a new version.
 const CHANGELOG = [
+  {
+    version: "v4.3.1",
+    date: "2026-08-16",
+    notes: "修正兩個使用回饋:①發音改成主動挑選瀏覽器裡的西班牙文語音(優先選 Google/Microsoft 等雲端語音,避開聽起來像中文腔調的預設語音),不再單純依賴瀏覽器自動選擇;②小關卡地圖上的數字改成單純的關卡序號(1、2、3...),不再顯示單字範圍(11-20 這種),同一分級/主題內連續編號。",
+  },
   {
     version: "v4.3.0",
     date: "2026-08-16",
@@ -1000,6 +1005,71 @@ function masteryTier(bestAccuracy) {
 }
 
 // ---------------------------------------------------------------------------
+// Text-to-speech voice selection.
+//
+// The browser's SpeechSynthesis API, if you only set `utterance.lang`,
+// silently falls back to whatever "closest match" voice the OS/browser
+// picks — on a machine whose system language is Chinese, that's often a
+// multilingual engine voice that reads Spanish with a heavy Chinese accent
+// instead of a proper native Spanish voice, even though a real es-ES/es-US
+// voice is usually also installed and just wasn't chosen. We fix this by
+// explicitly listing available voices, filtering to Spanish ones, and
+// ranking them so a genuine native-sounding voice is picked instead of
+// letting the browser default silently pick a bad one.
+// ---------------------------------------------------------------------------
+let cachedSpanishVoice = null;
+let spanishVoiceResolved = false;
+
+function scoreSpanishVoice(voice) {
+  const lang = (voice.lang || "").toLowerCase();
+  const name = (voice.name || "").toLowerCase();
+  if (!lang.startsWith("es")) return -1;
+  let score = 0;
+  // Prefer Spain Spanish since the app's example sentences use vosotros etc.,
+  // but any Spanish variant is far better than a non-Spanish fallback voice.
+  if (lang === "es-es") score += 5;
+  else if (lang.startsWith("es-")) score += 3;
+  else score += 1;
+  // Voices from major cloud TTS engines tend to sound native; local/compact
+  // "eSpeak"-style engines tend to sound robotic or mispronounce Spanish.
+  if (/google/.test(name)) score += 6;
+  if (/microsoft/.test(name)) score += 5;
+  if (/natural|neural|online|enhanced|premium|wavenet/.test(name)) score += 4;
+  if (/compact|espeak|robot/.test(name)) score -= 4;
+  if (voice.localService === false) score += 1; // cloud-backed voices are usually higher quality
+  return score;
+}
+
+function pickBestSpanishVoice() {
+  try {
+    const voices = window.speechSynthesis.getVoices() || [];
+    if (!voices.length) return null;
+    const ranked = voices
+      .map((v) => ({ v, score: scoreSpanishVoice(v) }))
+      .filter((x) => x.score >= 0)
+      .sort((a, b) => b.score - a.score);
+    return ranked.length ? ranked[0].v : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function refreshSpanishVoice() {
+  const found = pickBestSpanishVoice();
+  if (found) {
+    cachedSpanishVoice = found;
+    spanishVoiceResolved = true;
+  }
+}
+
+if (typeof window !== "undefined" && window.speechSynthesis) {
+  // Voice list often loads asynchronously (esp. Chrome) — try immediately
+  // and again once the browser tells us the list is ready/changed.
+  refreshSpanishVoice();
+  window.speechSynthesis.onvoiceschanged = refreshSpanishVoice;
+}
+
+// ---------------------------------------------------------------------------
 // Spaced-repetition helpers
 // ---------------------------------------------------------------------------
 function todayStr() {
@@ -1176,8 +1246,10 @@ function SpanishVocab() {
 
   const speak = (text) => {
     try {
+      if (!spanishVoiceResolved) refreshSpanishVoice();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = "es-ES";
+      u.lang = cachedSpanishVoice ? cachedSpanishVoice.lang : "es-ES";
+      if (cachedSpanishVoice) u.voice = cachedSpanishVoice;
       window.speechSynthesis.speak(u);
     } catch (e) {
       /* speech synthesis unavailable */
@@ -1636,12 +1708,14 @@ function SpanishVocab() {
                 // stage.index (position across the whole word bank) — using
                 // the global index here double-counted the chapter offset
                 // once chapters beyond the first one exist (100+ words).
-                const wordStart = currentChapter.index * CHAPTERS_STAGE_COUNT * STAGE_SIZE + localIdx * STAGE_SIZE + 1;
-                const wordEnd = wordStart + stage.words.length - 1;
+                // Stage number is continuous across the whole level/theme
+                // (chapter 2's first stage is 11, not 1 again), since chapters
+                // are just a pagination grouping, not a separate counting unit.
+                const stageNumber = currentChapter.index * CHAPTERS_STAGE_COUNT + localIdx + 1;
                 return (
                   <button
                     key={stage.index}
-                    onClick={() => enterStage(stage.words, `${wordStart}-${wordEnd}`)}
+                    onClick={() => enterStage(stage.words, `第 ${stageNumber} 關`)}
                     style={{
                       background: prog ? info.light : "#F9F1E6",
                       border: `1.5px solid ${isDue ? "#C0392B" : prog ? info.color : "#ECDFCA"}`,
@@ -1677,7 +1751,7 @@ function SpanishVocab() {
                         color: prog ? info.color : "#C9B89E",
                       }}
                     >
-                      {wordStart}-{wordEnd}
+                      {stageNumber}
                     </span>
                     <span style={{ fontSize: "0.62rem", color: isDue ? "#C0392B" : "#A99B85", fontWeight: isDue ? 700 : 400 }}>
                       {isDue ? "🔔 該複習了" : prog ? `玩過 ${prog.plays} 次` : "未挑戰"}
@@ -1796,7 +1870,7 @@ function SpanishVocab() {
   // ---------------------------------------------------------------------
   if (screen === "lesson" && activeStage) {
     const lessonTitle =
-      activeStage.kind === "mistake" ? activeStage.stageLabel : `${info.label} · 第 ${activeStage.stageLabel} 字`;
+      activeStage.kind === "mistake" ? activeStage.stageLabel : `${info.label} · ${activeStage.stageLabel}`;
     return (
       <div style={{ minHeight: "100vh", background: "#FDF6EC", fontFamily: "'Inter', sans-serif", paddingBottom: "6rem" }}>
         <TopBar title={lessonTitle} onBack={backToMap} />
