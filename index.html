@@ -143,10 +143,15 @@ const LOCAL_STORAGE_KEY = "esVocabApp.v1";
 // App info / version (shown on the "說明" screen)
 // ---------------------------------------------------------------------------
 const APP_MAKER = "Quinny";
-const APP_VERSION = "v4.0.0";
+const APP_VERSION = "v4.1.0";
 const APP_UPDATED = "2026-08-16";
 // Add a new entry to the TOP of this array whenever you ship a new version.
 const CHANGELOG = [
+  {
+    version: "v4.1.0",
+    date: "2026-08-16",
+    notes: "介面精簡:拿掉小關卡地圖上的星級評等(測驗結算頁的星級保留);學習卡片不再直接顯示例句,改成點 ℹ️ 才在彈窗裡看到(跟複數形式、補充說明放在一起)。",
+  },
   {
     version: "v4.0.0",
     date: "2026-08-16",
@@ -1108,7 +1113,6 @@ function SpanishVocab() {
               {(currentChapter?.stages || []).map((stage, localIdx) => {
                 const key = stageProgKey(stage.words);
                 const prog = progress[key];
-                const tier = masteryTier(prog?.bestAccuracy ?? null);
                 const reviewStatus = stageReviewStatus(srs[key]);
                 const isDue = reviewStatus.state === "due";
                 // Use localIdx (position within THIS chapter) rather than
@@ -1158,16 +1162,6 @@ function SpanishVocab() {
                     >
                       {wordStart}-{wordEnd}
                     </span>
-                    <div style={{ display: "flex", gap: "0.1rem" }}>
-                      {[0, 1, 2].map((i) => (
-                        <Star
-                          key={i}
-                          size={11}
-                          fill={i < tier.stars ? tier.color : "none"}
-                          stroke={i < tier.stars ? tier.color : "#A99B85"}
-                        />
-                      ))}
-                    </div>
                     <span style={{ fontSize: "0.62rem", color: isDue ? "#C0392B" : "#A99B85", fontWeight: isDue ? 700 : 400 }}>
                       {isDue ? "🔔 該複習了" : prog ? `玩過 ${prog.plays} 次` : "未挑戰"}
                     </span>
@@ -1316,25 +1310,23 @@ function SpanishVocab() {
                   <GenderBadge word={w} />
                 </div>
                 <div style={{ display: "flex", gap: "0.4rem" }}>
-                  {(w.plural || w.note) && (
-                    <button
-                      onClick={() => setPluralPopup(w)}
-                      style={{
-                        background: "none",
-                        border: "1px solid #D8CBA8",
-                        borderRadius: "9999px",
-                        width: "1.7rem",
-                        height: "1.7rem",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#8A7A5E",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <Info size={12} />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setPluralPopup(w)}
+                    style={{
+                      background: "none",
+                      border: "1px solid #D8CBA8",
+                      borderRadius: "9999px",
+                      width: "1.7rem",
+                      height: "1.7rem",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#8A7A5E",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Info size={12} />
+                  </button>
                   <button
                     onClick={() => speak(w.es)}
                     style={{
@@ -1356,8 +1348,6 @@ function SpanishVocab() {
               </div>
               <div style={{ color: "#8A7A5E", fontSize: "0.75rem", marginTop: "0.15rem" }}>{w.pos}</div>
               <div style={{ fontSize: "1rem", fontWeight: 600, color: "#3A2E1F", marginTop: "0.5rem" }}>{w.zh}</div>
-              <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "#A99B85", fontStyle: "italic" }}>{w.ex}</div>
-              <div style={{ fontSize: "0.75rem", color: "#8A7A5E" }}>{w.exZh}</div>
             </div>
           ))}
         </div>
@@ -1419,7 +1409,7 @@ function SpanishVocab() {
                 textAlign: "center",
               }}
             >
-              {pluralPopup.plural ? (
+              {pluralPopup.plural && (
                 <React.Fragment>
                   <div style={{ fontSize: "0.8rem", color: "#8A7A5E" }}>複數形式</div>
                   <div
@@ -1440,12 +1430,34 @@ function SpanishVocab() {
                     {pluralPopup.es}
                   </div>
                 </React.Fragment>
-              ) : (
-                <div style={{ fontSize: "0.8rem", color: "#8A7A5E" }}>補充說明</div>
               )}
               {pluralPopup.note && (
-                <div style={{ fontSize: "0.72rem", color: "#B98A2E", marginTop: "0.4rem" }}>※ {pluralPopup.note}</div>
+                <div style={{ fontSize: "0.72rem", color: "#B98A2E", marginTop: pluralPopup.plural ? "0.6rem" : 0 }}>
+                  ※ {pluralPopup.note}
+                </div>
               )}
+              <div
+                style={{
+                  marginTop: pluralPopup.plural || pluralPopup.note ? "1rem" : 0,
+                  paddingTop: pluralPopup.plural || pluralPopup.note ? "1rem" : 0,
+                  borderTop: pluralPopup.plural || pluralPopup.note ? "1px solid #E9DFC4" : "none",
+                }}
+              >
+                <div style={{ fontSize: "0.8rem", color: "#8A7A5E" }}>例句</div>
+                <div
+                  style={{
+                    fontFamily: "'Fraunces', serif",
+                    fontStyle: "italic",
+                    fontSize: "1rem",
+                    color: "#3A2E1F",
+                    marginTop: "0.45rem",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {pluralPopup.ex}
+                </div>
+                <div style={{ fontSize: "0.78rem", color: "#8A7A5E", marginTop: "0.35rem" }}>{pluralPopup.exZh}</div>
+              </div>
               <button
                 onClick={() => setPluralPopup(null)}
                 style={{
