@@ -1,0 +1,144 @@
+/* ============================================
+   西文單字學習 - 設計系統 v1
+   Icon: 純倒問號 ¿ ／ 主色系: 珊瑚色 ／ 點綴色: 鼠尾草綠
+   ============================================ */
+
+:root {
+  /* 主色 */
+  --coral: #e07a5f;
+  --cream: #fdf6ec;
+
+  /* 頁面底色（比純白更暖，跟 icon 呼應） */
+  --bg: #fdf6ec;
+  --card-bg: #f9f1e6;
+  --card-border: #ecdfca;
+
+  /* 次要文字色 */
+  --text-main: #3a2e1f;
+  --text-sub: #a99b85;
+
+  /* 未挑戰/待完成的淺色狀態 */
+  --idle-bg: #f4e9dc;
+  --idle-border: #e0cfb4;
+  --idle-text: #c9b89e;
+
+  /* 點綴色：只用在「已完成/正確」這類語意狀態，不用在大面積底色 */
+  --accent-green: #7d9471;
+  --accent-green-text: #5c7052;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-main);
+  font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif;
+}
+
+/* ---------- App Icon / Logo ---------- */
+.app-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--coral);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.app-icon span {
+  color: var(--cream);
+  font-family: Georgia, "DejaVu Serif", serif;
+  font-weight: 700;
+  font-size: 22px;
+}
+
+/* ---------- 分級 / 主題 頁籤 ---------- */
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 12px 0;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.tab.active {
+  background: var(--coral);
+  color: var(--cream);
+}
+.tab.inactive {
+  background: var(--idle-bg);
+  color: var(--text-sub);
+  border: 1px solid var(--card-border);
+}
+
+/* ---------- 分級圓圈 (A1-C1) ---------- */
+.level-circle {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+.level-circle.done {
+  background: var(--coral);
+  color: var(--cream);
+}
+.level-circle.todo {
+  background: var(--idle-bg);
+  color: var(--idle-text);
+  border: 2px dashed var(--idle-border);
+}
+
+/* ---------- 關卡卡片 ---------- */
+.stage-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 16px 10px;
+  text-align: center;
+  position: relative;
+}
+.stage-card .range {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.stage-card .status {
+  font-size: 11px;
+  color: var(--text-sub);
+}
+.stage-card .stars.filled {
+  color: var(--coral);
+}
+
+/* 已完成關卡：用鼠尾草綠點綴外框 + 標籤，不動整體底色 */
+.stage-card.progress {
+  border-color: var(--accent-green);
+}
+.stage-card.progress .range {
+  color: var(--accent-green-text);
+}
+.badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 9px;
+  padding: 3px 7px;
+  border-radius: 10px;
+  font-weight: 700;
+  color: #fff;
+}
+.badge.done {
+  background: var(--accent-green);
+}
+
+/* ---------- 錯題複習關卡（未來功能，先預留樣式） ---------- */
+.review-badge {
+  background: var(--accent-green);
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 700;
+}
