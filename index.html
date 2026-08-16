@@ -4,7 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>西文單字學習</title>
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231C2B3A'/%3E%3Ctext x='50' y='66' font-size='50' text-anchor='middle' fill='%23F5EFE0'%3E%C3%91%3C/text%3E%3C/svg%3E" />
+<link rel="icon" href="/icons/favicon.ico" sizes="any">
+<link rel="icon" href="/icons/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="/icons/favicon-16.png" type="image/png" sizes="16x16">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="西文單字" />
@@ -434,7 +439,23 @@ function normalizeEs(str) {
     .trim()
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+// Some entries store alternate forms in one field, e.g. "tío / tía" or
+// "cabrón/a". Accept a match against the full string OR any "/"-separated
+// piece, so users aren't forced to type the exact combined notation.
+// Accents are already stripped by normalizeEs, so plain English-keyboard
+// typing (e.g. "nino" for "niño") is accepted automatically.
+function checkSpellingAnswer(input, target) {
+  const normInput = normalizeEs(input);
+  if (!target.includes("/")) {
+    return normInput === normalizeEs(target);
+  }
+  const variants = target.split("/").map((piece) => normalizeEs(piece));
+  const noSlash = normalizeEs(target.replace(/\//g, ""));
+  return variants.includes(normInput) || normInput === normalizeEs(target) || normInput === noSlash;
 }
 
 function masteryTier(bestAccuracy) {
@@ -445,16 +466,20 @@ function masteryTier(bestAccuracy) {
   return { label: "尚未熟悉", stars: 1, color: "#A13A2F" };
 }
 
-function buildQuestions(words, attemptNumber) {
+function buildQuestions(words, attemptNumber, fullPool) {
   const pool = shuffle(words);
   const spellingCount = attemptNumber >= 3 ? Math.round(words.length * 0.4) : 0;
+  // If this stage is too small to supply 3 wrong-answer options on its own
+  // (e.g. a final stage left with only 1-2 words), pull distractors from the
+  // whole level/theme word bank instead so the quiz always has real choices.
+  const distractorSource = fullPool && fullPool.length > words.length ? fullPool : words;
   return pool.map((w, i) => {
     if (i < spellingCount) {
       return { type: "spelling", word: w, key: `${w.es}-${i}` };
     }
     const typePool = ["zh2es", "es2zh", "audio2zh"];
     const type = typePool[Math.floor(Math.random() * typePool.length)];
-    const distractorPool = words.filter((x) => x.es !== w.es);
+    const distractorPool = distractorSource.filter((x) => x.es !== w.es);
     const distractors = shuffle(distractorPool).slice(0, 3);
     const options = shuffle([w, ...distractors]);
     return { type, word: w, options, key: `${w.es}-${i}` };
@@ -520,7 +545,7 @@ function SpanishVocab() {
   const startQuiz = () => {
     const prog = progress[activeStage.key];
     const attemptNumber = (prog?.plays || 0) + 1;
-    const questions = buildQuestions(activeStage.words, attemptNumber);
+    const questions = buildQuestions(activeStage.words, attemptNumber, bank);
     setQuizState({
       questions,
       qIndex: 0,
@@ -565,8 +590,25 @@ function SpanishVocab() {
   const submitSpelling = () => {
     if (quizState.showFeedback) return;
     const q = quizState.questions[quizState.qIndex];
-    const isCorrect = normalizeEs(quizState.inputValue) === normalizeEs(q.word.es);
+    const isCorrect = checkSpellingAnswer(quizState.inputValue, q.word.es);
     submitAnswer(isCorrect);
+  };
+
+  const spellingInputRef = React.useRef(null);
+  const SPECIAL_CHARS = ["ñ", "Ñ", "¿", "¡", "ü", "Ü", "á", "é", "í", "ó", "ú"];
+  const insertSpecialChar = (char) => {
+    const el = spellingInputRef.current;
+    const current = quizState?.inputValue ?? "";
+    const start = el && el.selectionStart != null ? el.selectionStart : current.length;
+    const end = el && el.selectionEnd != null ? el.selectionEnd : current.length;
+    const newValue = current.slice(0, start) + char + current.slice(end);
+    setQuizState((prev) => ({ ...prev, inputValue: newValue }));
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      const pos = start + char.length;
+      el.setSelectionRange(pos, pos);
+    });
   };
 
   const nextQuestion = () => {
@@ -837,11 +879,15 @@ function SpanishVocab() {
               gap: "0.7rem",
             }}
           >
-            {(currentChapter?.stages || []).map((stage) => {
+            {(currentChapter?.stages || []).map((stage, localIdx) => {
               const key = stageProgKey(stage.words);
               const prog = progress[key];
               const tier = masteryTier(prog?.bestAccuracy ?? null);
-              const wordStart = currentChapter.index * CHAPTERS_STAGE_COUNT * STAGE_SIZE + stage.index * STAGE_SIZE + 1;
+              // Use localIdx (position within THIS chapter) rather than
+              // stage.index (position across the whole word bank) — using
+              // the global index here double-counted the chapter offset
+              // once chapters beyond the first one exist (100+ words).
+              const wordStart = currentChapter.index * CHAPTERS_STAGE_COUNT * STAGE_SIZE + localIdx * STAGE_SIZE + 1;
               const wordEnd = wordStart + stage.words.length - 1;
               return (
                 <button
@@ -926,7 +972,7 @@ function SpanishVocab() {
                   <GenderBadge word={w} />
                 </div>
                 <div style={{ display: "flex", gap: "0.4rem" }}>
-                  {w.plural && (
+                  {(w.plural || w.note) && (
                     <button
                       onClick={() => setPluralPopup(w)}
                       style={{
@@ -1029,24 +1075,30 @@ function SpanishVocab() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "0.8rem", color: "#8A7A5E" }}>複數形式</div>
-              <div
-                style={{
-                  fontFamily: "'Fraunces', serif",
-                  fontStyle: "italic",
-                  fontWeight: 600,
-                  fontSize: "1.6rem",
-                  color: "#22303F",
-                  marginTop: "0.4rem",
-                }}
-              >
-                {pluralPopup.gender === "f" ? "las " : "los "}
-                {pluralPopup.plural}
-              </div>
-              <div style={{ fontSize: "0.75rem", color: "#5C6B7A", marginTop: "0.5rem" }}>
-                單數:{pluralPopup.gender === "f" ? "la " : "el "}
-                {pluralPopup.es}
-              </div>
+              {pluralPopup.plural ? (
+                <React.Fragment>
+                  <div style={{ fontSize: "0.8rem", color: "#8A7A5E" }}>複數形式</div>
+                  <div
+                    style={{
+                      fontFamily: "'Fraunces', serif",
+                      fontStyle: "italic",
+                      fontWeight: 600,
+                      fontSize: "1.6rem",
+                      color: "#22303F",
+                      marginTop: "0.4rem",
+                    }}
+                  >
+                    {pluralPopup.gender === "f" ? "las " : "los "}
+                    {pluralPopup.plural}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "#5C6B7A", marginTop: "0.5rem" }}>
+                    單數:{pluralPopup.gender === "f" ? "la " : "el "}
+                    {pluralPopup.es}
+                  </div>
+                </React.Fragment>
+              ) : (
+                <div style={{ fontSize: "0.8rem", color: "#8A7A5E" }}>補充說明</div>
+              )}
               {pluralPopup.note && (
                 <div style={{ fontSize: "0.72rem", color: "#B98A2E", marginTop: "0.4rem" }}>※ {pluralPopup.note}</div>
               )}
@@ -1159,15 +1211,16 @@ function SpanishVocab() {
           <div style={{ fontSize: "0.75rem", color: "#8A7A5E", marginTop: "0.2rem" }}>拼出西班牙文</div>
         </div>
       );
-      const isCorrect = quizState.showFeedback && normalizeEs(quizState.inputValue) === normalizeEs(q.word.es);
+      const isCorrect = quizState.showFeedback && checkSpellingAnswer(quizState.inputValue, q.word.es);
       optionsNode = (
         <div>
           <input
+            ref={spellingInputRef}
             type="text"
             value={quizState.inputValue}
             disabled={quizState.showFeedback}
             onChange={(e) => setQuizState((prev) => ({ ...prev, inputValue: e.target.value }))}
-            placeholder="輸入西班牙文…"
+            placeholder="輸入西班牙文…(英文鍵盤打法也可以)"
             style={{
               width: "100%",
               padding: "0.8rem 1rem",
@@ -1180,6 +1233,30 @@ function SpanishVocab() {
               boxSizing: "border-box",
             }}
           />
+          {!quizState.showFeedback && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginTop: "0.6rem" }}>
+              {SPECIAL_CHARS.map((char) => (
+                <button
+                  key={char}
+                  type="button"
+                  onClick={() => insertSpecialChar(char)}
+                  style={{
+                    width: "2.1rem",
+                    height: "2.1rem",
+                    borderRadius: "0.5rem",
+                    border: "1px solid #3A4A5C",
+                    background: "#1C2B3A",
+                    color: "#E8DFC8",
+                    fontFamily: "'Fraunces', serif",
+                    fontSize: "1rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  {char}
+                </button>
+              ))}
+            </div>
+          )}
           {quizState.showFeedback && !isCorrect && (
             <div style={{ marginTop: "0.5rem", fontSize: "0.85rem", color: "#E3B9AE" }}>
               正確答案:<strong>{q.word.es}</strong>
