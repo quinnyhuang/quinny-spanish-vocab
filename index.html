@@ -4,18 +4,18 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>西文單字學習</title>
-<link rel="icon" href="icons/favicon.ico" sizes="any">
-<link rel="icon" href="icons/favicon-32.png" type="image/png" sizes="32x32">
-<link rel="icon" href="icons/favicon-16.png" type="image/png" sizes="16x16">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png" />
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="icon" href="/icons/favicon.ico" sizes="any">
+<link rel="icon" href="/icons/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="/icons/favicon-16.png" type="image/png" sizes="16x16">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="西文單字" />
-<meta name="theme-color" content="#1C2B3A" />
+<meta name="theme-color" content="#FDF6EC" />
 <style>
-  html, body { margin: 0; padding: 0; background: #1C2B3A; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+  html, body { margin: 0; padding: 0; background: #FDF6EC; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
   * { box-sizing: border-box; }
 </style>
 </head>
@@ -459,7 +459,7 @@ function checkSpellingAnswer(input, target) {
 }
 
 function masteryTier(bestAccuracy) {
-  if (bestAccuracy == null) return { label: "尚未挑戰", stars: 0, color: "#5C6B7A" };
+  if (bestAccuracy == null) return { label: "尚未挑戰", stars: 0, color: "#A99B85" };
   if (bestAccuracy >= 100) return { label: "精通", stars: 3, color: "#D4A24C" };
   if (bestAccuracy >= 80) return { label: "熟練", stars: 3, color: "#5B8C5A" };
   if (bestAccuracy >= 50) return { label: "略熟", stars: 2, color: "#B98A2E" };
@@ -666,7 +666,7 @@ function SpanishVocab() {
       <button
         onClick={onBack}
         style={{
-          background: "#25384A",
+          background: "#E07A5F",
           border: "none",
           borderRadius: "9999px",
           width: "2.2rem",
@@ -674,7 +674,7 @@ function SpanishVocab() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "#F5EFE0",
+          color: "#FDF6EC",
           cursor: "pointer",
           flexShrink: 0,
         }}
@@ -686,7 +686,7 @@ function SpanishVocab() {
           fontFamily: "'Fraunces', serif",
           fontWeight: 600,
           fontSize: "1.15rem",
-          color: "#F5EFE0",
+          color: "#3A2E1F",
           margin: 0,
         }}
       >
@@ -723,16 +723,16 @@ function SpanishVocab() {
   // ---------------------------------------------------------------------
   if (screen === "map") {
     return (
-      <div style={{ minHeight: "100vh", background: "#1C2B3A", fontFamily: "'Inter', sans-serif", paddingBottom: "3rem" }}>
+      <div style={{ minHeight: "100vh", background: "#FDF6EC", fontFamily: "'Inter', sans-serif", paddingBottom: "3rem" }}>
         <div style={{ padding: "2.25rem 1.5rem 1.25rem" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: "0.6rem" }}>
-            <BookOpenCheck size={22} color="#E8DFC8" strokeWidth={2} />
+            <BookOpenCheck size={22} color="#E07A5F" strokeWidth={2} />
             <h1
               style={{
                 fontFamily: "'Fraunces', serif",
                 fontWeight: 600,
                 fontSize: "1.6rem",
-                color: "#F5EFE0",
+                color: "#3A2E1F",
                 letterSpacing: "-0.01em",
                 margin: 0,
               }}
@@ -740,7 +740,7 @@ function SpanishVocab() {
               西文單字學習
             </h1>
           </div>
-          <p style={{ color: "#8FA0B3", fontSize: "0.85rem", marginTop: "0.35rem" }}>
+          <p style={{ color: "#A99B85", fontSize: "0.85rem", marginTop: "0.35rem" }}>
             選一個分級或主題,進入關卡地圖開始複習。
           </p>
         </div>
@@ -759,9 +759,9 @@ function SpanishVocab() {
                   flex: 1,
                   padding: "0.6rem",
                   borderRadius: "0.7rem",
-                  border: active ? "none" : "1px solid #3A4A5C",
-                  background: active ? "#F5EFE0" : "transparent",
-                  color: active ? "#22303F" : "#8FA0B3",
+                  border: active ? "none" : "1px solid #ECDFCA",
+                  background: active ? "#E07A5F" : "transparent",
+                  color: active ? "#FDF6EC" : "#A99B85",
                   fontWeight: 600,
                   fontSize: "0.85rem",
                   cursor: "pointer",
@@ -787,9 +787,9 @@ function SpanishVocab() {
                     width: "3.6rem",
                     height: "3.6rem",
                     borderRadius: "9999px",
-                    border: `2px dashed ${active ? li.color : "#3A4A5C"}`,
+                    border: `2px dashed ${active ? li.color : "#ECDFCA"}`,
                     background: active ? li.light : "transparent",
-                    color: active ? li.color : "#8FA0B3",
+                    color: active ? li.color : "#A99B85",
                     fontFamily: "'IBM Plex Mono', monospace",
                     fontWeight: 600,
                     fontSize: "0.95rem",
@@ -823,9 +823,9 @@ function SpanishVocab() {
                     gap: "0.35rem",
                     padding: "0.5rem 0.8rem",
                     borderRadius: "9999px",
-                    border: `1.5px solid ${active ? ti.color : "#3A4A5C"}`,
+                    border: `1.5px solid ${active ? ti.color : "#ECDFCA"}`,
                     background: active ? ti.light : "transparent",
-                    color: active ? ti.color : "#8FA0B3",
+                    color: active ? ti.color : "#A99B85",
                     fontWeight: 600,
                     fontSize: "0.78rem",
                     cursor: "pointer",
@@ -853,9 +853,9 @@ function SpanishVocab() {
                     flexShrink: 0,
                     padding: "0.45rem 0.8rem",
                     borderRadius: "0.6rem",
-                    border: `1px solid ${active ? info.color : "#3A4A5C"}`,
+                    border: `1px solid ${active ? info.color : "#ECDFCA"}`,
                     background: active ? info.light : "transparent",
-                    color: active ? info.color : "#8FA0B3",
+                    color: active ? info.color : "#A99B85",
                     fontFamily: "'IBM Plex Mono', monospace",
                     fontSize: "0.75rem",
                     fontWeight: 600,
@@ -894,8 +894,8 @@ function SpanishVocab() {
                   key={stage.index}
                   onClick={() => enterStage(stage.words, `${wordStart}-${wordEnd}`)}
                   style={{
-                    background: prog ? info.light : "#25384A",
-                    border: `1.5px solid ${prog ? info.color : "#3A4A5C"}`,
+                    background: prog ? info.light : "#F9F1E6",
+                    border: `1.5px solid ${prog ? info.color : "#ECDFCA"}`,
                     borderRadius: "0.85rem",
                     padding: "0.75rem 0.5rem",
                     display: "flex",
@@ -911,7 +911,7 @@ function SpanishVocab() {
                       fontFamily: "'IBM Plex Mono', monospace",
                       fontWeight: 700,
                       fontSize: "0.95rem",
-                      color: prog ? info.color : "#B8C4D0",
+                      color: prog ? info.color : "#C9B89E",
                     }}
                   >
                     {wordStart}-{wordEnd}
@@ -922,11 +922,11 @@ function SpanishVocab() {
                         key={i}
                         size={11}
                         fill={i < tier.stars ? tier.color : "none"}
-                        stroke={i < tier.stars ? tier.color : "#5C6B7A"}
+                        stroke={i < tier.stars ? tier.color : "#A99B85"}
                       />
                     ))}
                   </div>
-                  <span style={{ fontSize: "0.62rem", color: prog ? "#5C6B7A" : "#8FA0B3" }}>
+                  <span style={{ fontSize: "0.62rem", color: prog ? "#A99B85" : "#A99B85" }}>
                     {prog ? `玩過 ${prog.plays} 次` : "未挑戰"}
                   </span>
                 </button>
@@ -943,14 +943,14 @@ function SpanishVocab() {
   // ---------------------------------------------------------------------
   if (screen === "lesson" && activeStage) {
     return (
-      <div style={{ minHeight: "100vh", background: "#1C2B3A", fontFamily: "'Inter', sans-serif", paddingBottom: "6rem" }}>
+      <div style={{ minHeight: "100vh", background: "#FDF6EC", fontFamily: "'Inter', sans-serif", paddingBottom: "6rem" }}>
         <TopBar title={`${info.label} · 第 ${activeStage.stageLabel} 字`} onBack={backToMap} />
         <div style={{ padding: "0 1.25rem", display: "flex", flexDirection: "column", gap: "0.7rem" }}>
           {activeStage.words.map((w, i) => (
             <div
               key={i}
               style={{
-                background: "#F5EFE0",
+                background: "#F9F1E6",
                 borderRadius: "0.9rem",
                 padding: "1rem 1.1rem",
                 position: "relative",
@@ -964,7 +964,7 @@ function SpanishVocab() {
                       fontStyle: "italic",
                       fontWeight: 500,
                       fontSize: "1.3rem",
-                      color: "#22303F",
+                      color: "#3A2E1F",
                     }}
                   >
                     {w.es}
@@ -1011,8 +1011,8 @@ function SpanishVocab() {
                 </div>
               </div>
               <div style={{ color: "#8A7A5E", fontSize: "0.75rem", marginTop: "0.15rem" }}>{w.pos}</div>
-              <div style={{ fontSize: "1rem", fontWeight: 600, color: "#22303F", marginTop: "0.5rem" }}>{w.zh}</div>
-              <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "#5C6B7A", fontStyle: "italic" }}>{w.ex}</div>
+              <div style={{ fontSize: "1rem", fontWeight: 600, color: "#3A2E1F", marginTop: "0.5rem" }}>{w.zh}</div>
+              <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "#A99B85", fontStyle: "italic" }}>{w.ex}</div>
               <div style={{ fontSize: "0.75rem", color: "#8A7A5E" }}>{w.exZh}</div>
             </div>
           ))}
@@ -1025,7 +1025,7 @@ function SpanishVocab() {
             left: 0,
             right: 0,
             padding: "1rem 1.25rem 1.4rem",
-            background: "linear-gradient(to top, #1C2B3A 60%, transparent)",
+            background: "linear-gradient(to top, #FDF6EC 60%, transparent)",
           }}
         >
           <button
@@ -1035,8 +1035,8 @@ function SpanishVocab() {
               padding: "0.9rem",
               borderRadius: "0.8rem",
               border: "none",
-              background: "#F5EFE0",
-              color: "#22303F",
+              background: "#E07A5F",
+              color: "#FDF6EC",
               fontWeight: 700,
               fontSize: "0.95rem",
               display: "flex",
@@ -1067,7 +1067,7 @@ function SpanishVocab() {
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
-                background: "#F5EFE0",
+                background: "#F9F1E6",
                 borderRadius: "1rem",
                 padding: "1.5rem",
                 width: "100%",
@@ -1084,14 +1084,14 @@ function SpanishVocab() {
                       fontStyle: "italic",
                       fontWeight: 600,
                       fontSize: "1.6rem",
-                      color: "#22303F",
+                      color: "#3A2E1F",
                       marginTop: "0.4rem",
                     }}
                   >
                     {pluralPopup.gender === "f" ? "las " : "los "}
                     {pluralPopup.plural}
                   </div>
-                  <div style={{ fontSize: "0.75rem", color: "#5C6B7A", marginTop: "0.5rem" }}>
+                  <div style={{ fontSize: "0.75rem", color: "#A99B85", marginTop: "0.5rem" }}>
                     單數:{pluralPopup.gender === "f" ? "la " : "el "}
                     {pluralPopup.es}
                   </div>
@@ -1110,7 +1110,7 @@ function SpanishVocab() {
                   padding: "0.55rem",
                   borderRadius: "0.6rem",
                   border: "none",
-                  background: "#22303F",
+                  background: "#3A2E1F",
                   color: "#F5EFE0",
                   fontWeight: 600,
                   cursor: "pointer",
@@ -1137,7 +1137,7 @@ function SpanishVocab() {
 
     if (q.type === "zh2es") {
       promptNode = (
-        <div style={{ fontSize: "1.5rem", fontWeight: 600, color: "#22303F" }}>{q.word.zh}</div>
+        <div style={{ fontSize: "1.5rem", fontWeight: 600, color: "#3A2E1F" }}>{q.word.zh}</div>
       );
       optionsNode = q.options.map((opt, i) => {
         const isCorrect = opt.es === q.word.es;
@@ -1152,7 +1152,7 @@ function SpanishVocab() {
     } else if (q.type === "es2zh") {
       promptNode = (
         <div>
-          <div style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic", fontWeight: 500, fontSize: "1.7rem", color: "#22303F" }}>
+          <div style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic", fontWeight: 500, fontSize: "1.7rem", color: "#3A2E1F" }}>
             {q.word.es}
           </div>
           <div style={{ fontSize: "0.8rem", color: "#8A7A5E", marginTop: "0.2rem" }}>
@@ -1207,7 +1207,7 @@ function SpanishVocab() {
     } else if (q.type === "spelling") {
       promptNode = (
         <div>
-          <div style={{ fontSize: "1.3rem", fontWeight: 600, color: "#22303F" }}>{q.word.zh}</div>
+          <div style={{ fontSize: "1.3rem", fontWeight: 600, color: "#3A2E1F" }}>{q.word.zh}</div>
           <div style={{ fontSize: "0.75rem", color: "#8A7A5E", marginTop: "0.2rem" }}>拼出西班牙文</div>
         </div>
       );
@@ -1225,9 +1225,9 @@ function SpanishVocab() {
               width: "100%",
               padding: "0.8rem 1rem",
               borderRadius: "0.7rem",
-              border: `1.5px solid ${quizState.showFeedback ? (isCorrect ? "#4A6B49" : "#7A3A30") : "#3A4A5C"}`,
-              background: "#25384A",
-              color: "#F5EFE0",
+              border: `1.5px solid ${quizState.showFeedback ? (isCorrect ? "#7D9471" : "#C0392B") : "#ECDFCA"}`,
+              background: "#F9F1E6",
+              color: "#3A2E1F",
               fontSize: "1rem",
               outline: "none",
               boxSizing: "border-box",
@@ -1244,9 +1244,9 @@ function SpanishVocab() {
                     width: "2.1rem",
                     height: "2.1rem",
                     borderRadius: "0.5rem",
-                    border: "1px solid #3A4A5C",
-                    background: "#1C2B3A",
-                    color: "#E8DFC8",
+                    border: "1px solid #E0CFB4",
+                    background: "#F4E9DC",
+                    color: "#B5674F",
                     fontFamily: "'Fraunces', serif",
                     fontSize: "1rem",
                     cursor: "pointer",
@@ -1258,7 +1258,7 @@ function SpanishVocab() {
             </div>
           )}
           {quizState.showFeedback && !isCorrect && (
-            <div style={{ marginTop: "0.5rem", fontSize: "0.85rem", color: "#E3B9AE" }}>
+            <div style={{ marginTop: "0.5rem", fontSize: "0.85rem", color: "#C0392B" }}>
               正確答案:<strong>{q.word.es}</strong>
             </div>
           )}
@@ -1271,8 +1271,8 @@ function SpanishVocab() {
                 padding: "0.75rem",
                 borderRadius: "0.7rem",
                 border: "none",
-                background: "#F5EFE0",
-                color: "#22303F",
+                background: "#E07A5F",
+                color: "#FDF6EC",
                 fontWeight: 700,
                 cursor: "pointer",
               }}
@@ -1285,10 +1285,10 @@ function SpanishVocab() {
     }
 
     return (
-      <div style={{ minHeight: "100vh", background: "#1C2B3A", fontFamily: "'Inter', sans-serif" }}>
+      <div style={{ minHeight: "100vh", background: "#FDF6EC", fontFamily: "'Inter', sans-serif" }}>
         <TopBar title={`${info.label} · 測驗`} onBack={backToMap} />
         <div style={{ padding: "0 1.25rem" }}>
-          <div style={{ height: "0.4rem", background: "#25384A", borderRadius: "9999px", overflow: "hidden" }}>
+          <div style={{ height: "0.4rem", background: "#F9F1E6", borderRadius: "9999px", overflow: "hidden" }}>
             <div
               style={{
                 height: "100%",
@@ -1298,7 +1298,7 @@ function SpanishVocab() {
               }}
             />
           </div>
-          <div style={{ fontSize: "0.72rem", color: "#5C6B7A", marginTop: "0.4rem" }}>
+          <div style={{ fontSize: "0.72rem", color: "#A99B85", marginTop: "0.4rem" }}>
             第 {quizState.qIndex + 1} / {quizState.questions.length} 題 · 第 {quizState.attemptNumber} 次挑戰
             {quizState.attemptNumber >= 3 ? "(含拼寫題)" : ""}
           </div>
@@ -1307,7 +1307,7 @@ function SpanishVocab() {
         <div style={{ padding: "1.5rem 1.25rem" }}>
           <div
             style={{
-              background: "#F5EFE0",
+              background: "#F9F1E6",
               borderRadius: "1.1rem",
               padding: "2rem 1.4rem",
               minHeight: "9rem",
@@ -1332,8 +1332,8 @@ function SpanishVocab() {
                 padding: "0.8rem",
                 borderRadius: "0.75rem",
                 border: "none",
-                background: quizState._wasCorrect ? "#4A6B49" : "#7A3A30",
-                color: "#F5EFE0",
+                background: quizState._wasCorrect ? "#7D9471" : "#C0392B",
+                color: "#FDF6EC",
                 fontWeight: 700,
                 cursor: "pointer",
                 display: "flex",
@@ -1360,7 +1360,7 @@ function SpanishVocab() {
       <div
         style={{
           minHeight: "100vh",
-          background: "#1C2B3A",
+          background: "#FDF6EC",
           fontFamily: "'Inter', sans-serif",
           display: "flex",
           flexDirection: "column",
@@ -1371,7 +1371,7 @@ function SpanishVocab() {
       >
         <div
           style={{
-            background: "#F5EFE0",
+            background: "#F9F1E6",
             borderRadius: "1.2rem",
             padding: "2.2rem 1.6rem",
             width: "100%",
@@ -1379,7 +1379,7 @@ function SpanishVocab() {
             textAlign: "center",
           }}
         >
-          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: "1.3rem", color: "#22303F" }}>
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: "1.3rem", color: "#3A2E1F" }}>
             本關結算
           </div>
           <div style={{ marginTop: "1rem", display: "flex", justifyContent: "center", gap: "0.2rem" }}>
@@ -1396,7 +1396,7 @@ function SpanishVocab() {
               { label: "第幾次挑戰", value: resultData.attemptNumber },
             ].map((s) => (
               <div key={s.label} style={{ background: "#EFE6D0", borderRadius: "0.7rem", padding: "0.7rem 0.4rem" }}>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "1.05rem", color: "#22303F" }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "1.05rem", color: "#3A2E1F" }}>
                   {s.value}
                 </div>
                 <div style={{ fontSize: "0.62rem", color: "#8A7A5E", marginTop: "0.1rem" }}>{s.label}</div>
@@ -1412,7 +1412,7 @@ function SpanishVocab() {
               padding: "0.8rem",
               borderRadius: "0.75rem",
               border: "none",
-              background: "#22303F",
+              background: "#3A2E1F",
               color: "#F5EFE0",
               fontWeight: 700,
               cursor: "pointer",
@@ -1449,16 +1449,18 @@ function SpanishVocab() {
 }
 
 function OptionButton({ children, onClick, showState, isCorrect, isSelected }) {
-  let bg = "#25384A";
-  let border = "#3A4A5C";
-  let color = "#F5EFE0";
+  let bg = "#F9F1E6";
+  let border = "#ECDFCA";
+  let color = "#3A2E1F";
   if (showState) {
     if (isCorrect) {
-      bg = "#3E5A3D";
-      border = "#4A6B49";
+      bg = "#7D9471";
+      border = "#5B7F5A";
+      color = "#FDF6EC";
     } else if (isSelected) {
-      bg = "#5A3730";
-      border = "#7A3A30";
+      bg = "#C0392B";
+      border = "#96291D";
+      color = "#FDF6EC";
     }
   }
   return (
