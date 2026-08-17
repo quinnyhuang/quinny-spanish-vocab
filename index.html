@@ -132,7 +132,10 @@ const CHAPTERS_STAGE_COUNT = 10; // stages per chapter (大關) -> 100 words/cha
 // days, counted from the Day-1 completion date). This is a fixed-interval
 // schedule (not a full SM-2 algorithm) intentionally kept simple so it's easy
 // to reason about and to reuse for the mistake-book cycle below.
-const SRS_SCHEDULE = [2, 3, 7, 14];
+// Days-after-day1Date offsets for each review step. day1Date IS day 1, so to
+// land the reminders exactly on day 2 / 3 / 7 / 14 we add 1 / 2 / 6 / 13 days
+// (previously [2,3,7,14], which fired everything one day late — see CHANGELOG).
+const SRS_SCHEDULE = [1, 2, 6, 13];
 // Reminders are shown only inside the app (a badge on the stage tile) when it
 // is opened on/after the due date — this is a static, backend-less HTML file
 // so there is no way to reliably push notifications while the app is closed.
@@ -143,10 +146,15 @@ const LOCAL_STORAGE_KEY = "esVocabApp.v1";
 // App info / version (shown on the "說明" screen)
 // ---------------------------------------------------------------------------
 const APP_MAKER = "Quinny";
-const APP_VERSION = "v4.5.0";
-const APP_UPDATED = "2026-08-16";
+const APP_VERSION = "v4.6.0";
+const APP_UPDATED = "2026-08-17";
 // Add a new entry to the TOP of this array whenever you ship a new version.
 const CHANGELOG = [
+  {
+    version: "v4.6.0",
+    date: "2026-08-17",
+    notes: "修正與體驗調整六項:①修正複習提醒晚一天出現的 bug(第2/3/7/14天的計算差一天,現在時間點正確了);②每個小關卡的測驗改成每個字考兩次、共20題,並整批打散順序(不會照原本單字順序分組出現);③聽音辨義題作答後會顯示西班牙文拼字;西譯中題(只顯示拼字、沒有語音)加上發音按鈕;④「更新紀錄」預設只顯示最新一筆,其餘收合,需要時再展開查看全部;⑤分級/主題/分頁標籤,只要底下有任何小關卡到期複習,會用紅色外框標示,完成當天複習後自動消失,不用一個個點進去才知道哪裡有進度。",
+  },
   {
     version: "v4.5.0",
     date: "2026-08-16",
@@ -3477,6 +3485,14 @@ function stageReviewStatus(rec) {
   return { state: todayStr() >= dueDate ? "due" : "waiting", dueDate, stepIndex: rec.stepIndex };
 }
 
+// Same key scheme as stageProgKey (inside SpanishVocab) but usable for any
+// mode/key combo, so we can look up SRS status for levels/themes/chapters
+// other than the one currently on screen (e.g. to badge the A2 tab while
+// looking at A1).
+function progKeyFor(m, k, stageWords) {
+  return `${m}:${k}:${stageWords.map((w) => w.es).join(",").slice(0, 40)}`;
+}
+
 function chunkArray(arr, size) {
   const out = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
@@ -3484,23 +3500,44 @@ function chunkArray(arr, size) {
 }
 
 function buildQuestions(words, attemptNumber, fullPool) {
-  const pool = shuffle(words);
-  const spellingCount = attemptNumber >= 3 ? Math.round(words.length * 0.4) : 0;
   // If this stage is too small to supply 3 wrong-answer options on its own
   // (e.g. a final stage left with only 1-2 words), pull distractors from the
   // whole level/theme word bank instead so the quiz always has real choices.
   const distractorSource = fullPool && fullPool.length > words.length ? fullPool : words;
-  return pool.map((w, i) => {
-    if (i < spellingCount) {
-      return { type: "spelling", word: w, key: `${w.es}-${i}` };
-    }
-    const typePool = ["zh2es", "es2zh", "audio2zh"];
-    const type = typePool[Math.floor(Math.random() * typePool.length)];
+  const optionTypes = ["zh2es", "es2zh", "audio2zh"];
+  const useSpelling = attemptNumber >= 3;
+
+  const makeOptionQuestion = (w, type, key) => {
     const distractorPool = distractorSource.filter((x) => x.es !== w.es);
     const distractors = shuffle(distractorPool).slice(0, 3);
     const options = shuffle([w, ...distractors]);
-    return { type, word: w, options, key: `${w.es}-${i}` };
+    return { type, word: w, options, key };
+  };
+
+  // Each word is tested TWICE per quiz (so a 10-word stage produces 20
+  // questions total). The two occurrences for the same word always get
+  // different question types (never the same type twice in a row for that
+  // word), then the full question list is shuffled so the two occurrences
+  // of a word don't reliably land next to each other or in a fixed order.
+  const questions = [];
+  words.forEach((w, wi) => {
+    let types;
+    if (useSpelling && Math.random() < 0.4) {
+      types = ["spelling", shuffle(optionTypes)[0]];
+    } else {
+      types = shuffle(optionTypes).slice(0, 2);
+    }
+    types.forEach((type, occurrence) => {
+      const key = `${w.es}-${wi}-${occurrence}`;
+      if (type === "spelling") {
+        questions.push({ type: "spelling", word: w, key });
+      } else {
+        questions.push(makeOptionQuestion(w, type, key));
+      }
+    });
   });
+
+  return shuffle(questions);
 }
 
 // ===========================================================================
@@ -3526,6 +3563,7 @@ function SpanishVocab() {
   const [pluralPopup, setPluralPopup] = useState(null); // word object or null
   const [quizState, setQuizState] = useState(null);
   const [resultData, setResultData] = useState(null);
+  const [changelogOpen, setChangelogOpen] = useState(false);
 
   // -----------------------------------------------------------------------
   // Persisted state: quiz progress, spaced-repetition schedule, mistake book.
@@ -3561,6 +3599,39 @@ function SpanishVocab() {
   const currentChapter = chapters[Math.min(chapterIdx, chapters.length - 1)] || chapters[0];
 
   // -----------------------------------------------------------------------
+  // "Any due review inside here?" indicators for upper-level navigation
+  // (level tabs / theme tabs / chapter tabs), so the user can see there's
+  // something due without having to drill into every stage tile first.
+  // -----------------------------------------------------------------------
+  const levelDueMap = useMemo(() => {
+    const map = {};
+    LEVELS.forEach((l) => {
+      const lStages = chunkStages(WORD_BANK[l] || []);
+      map[l] = lStages.some((s) => stageReviewStatus(srs[progKeyFor("level", l, s.words)]).state === "due");
+    });
+    return map;
+  }, [srs]);
+
+  const themeDueMap = useMemo(() => {
+    const map = {};
+    THEMES.forEach((t) => {
+      const tStages = chunkStages(THEME_BANK[t] || []);
+      map[t] = tStages.some((s) => stageReviewStatus(srs[progKeyFor("theme", t, s.words)]).state === "due");
+    });
+    return map;
+  }, [srs]);
+
+  const chapterDueMap = useMemo(() => {
+    const map = {};
+    chapters.forEach((c) => {
+      map[c.index] = c.stages.some((s) => stageReviewStatus(srs[progKeyFor(mode, activeKey, s.words)]).state === "due");
+    });
+    return map;
+  }, [chapters, srs, mode, activeKey]);
+
+  const DUE_RING = "0 0 0 2px #C0392B";
+
+  // -----------------------------------------------------------------------
   // Mistake-book derived data
   // -----------------------------------------------------------------------
   const mistakeList = useMemo(
@@ -3594,7 +3665,7 @@ function SpanishVocab() {
     setScreen("map");
   };
 
-  const stageProgKey = (stageWords) => `${mode}:${activeKey}:${stageWords.map((w) => w.es).join(",").slice(0, 40)}`;
+  const stageProgKey = (stageWords) => progKeyFor(mode, activeKey, stageWords);
 
   const enterStage = (stageWords, stageLabel) => {
     const key = stageProgKey(stageWords);
@@ -4029,6 +4100,7 @@ function SpanishVocab() {
                     transform: active ? "rotate(-6deg)" : "rotate(0deg)",
                     transition: "all 0.2s ease",
                     cursor: "pointer",
+                    boxShadow: levelDueMap[l] ? DUE_RING : "none",
                   }}
                 >
                   {l}
@@ -4060,6 +4132,7 @@ function SpanishVocab() {
                     fontSize: "0.78rem",
                     cursor: "pointer",
                     whiteSpace: "nowrap",
+                    boxShadow: themeDueMap[t] ? DUE_RING : "none",
                   }}
                 >
                   <span style={{ fontSize: "0.95rem" }}>{ti.icon}</span>
@@ -4091,6 +4164,7 @@ function SpanishVocab() {
                     fontWeight: 600,
                     cursor: "pointer",
                     whiteSpace: "nowrap",
+                    boxShadow: chapterDueMap[c.index] ? DUE_RING : "none",
                   }}
                 >
                   單字 {c.range}
@@ -4514,8 +4588,29 @@ function SpanishVocab() {
     } else if (q.type === "es2zh") {
       promptNode = (
         <div>
-          <div style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic", fontWeight: 500, fontSize: "1.7rem", color: "#3A2E1F" }}>
-            {q.word.es}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <div style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic", fontWeight: 500, fontSize: "1.7rem", color: "#3A2E1F" }}>
+              {q.word.es}
+            </div>
+            <button
+              onClick={() => speak(q.word.es)}
+              aria-label="播放發音"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "2.1rem",
+                height: "2.1rem",
+                borderRadius: "9999px",
+                border: "none",
+                background: "#E9DFC4",
+                color: "#8A7A5E",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              <Volume2 size={16} />
+            </button>
           </div>
           <div style={{ fontSize: "0.8rem", color: "#8A7A5E", marginTop: "0.2rem" }}>
             {q.word.pos}
@@ -4535,26 +4630,41 @@ function SpanishVocab() {
       });
     } else if (q.type === "audio2zh") {
       promptNode = (
-        <button
-          onClick={() => speak(q.word.es)}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "0.5rem",
-            background: "#E9DFC4",
-            border: "none",
-            borderRadius: "9999px",
-            width: "5rem",
-            height: "5rem",
-            justifyContent: "center",
-            margin: "0 auto",
-            cursor: "pointer",
-            color: "#8A7A5E",
-          }}
-        >
-          <Volume2 size={26} />
-        </button>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.6rem" }}>
+          <button
+            onClick={() => speak(q.word.es)}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "0.5rem",
+              background: "#E9DFC4",
+              border: "none",
+              borderRadius: "9999px",
+              width: "5rem",
+              height: "5rem",
+              justifyContent: "center",
+              margin: "0 auto",
+              cursor: "pointer",
+              color: "#8A7A5E",
+            }}
+          >
+            <Volume2 size={26} />
+          </button>
+          {quizState.showFeedback && (
+            <div
+              style={{
+                fontFamily: "'Fraunces', serif",
+                fontStyle: "italic",
+                fontWeight: 500,
+                fontSize: "1.3rem",
+                color: "#3A2E1F",
+              }}
+            >
+              {q.word.es}
+            </div>
+          )}
+        </div>
       );
       optionsNode = q.options.map((opt, i) => {
         const isCorrect = opt.es === q.word.es;
@@ -4864,14 +4974,30 @@ function SpanishVocab() {
           </Section>
 
           <Section title="📝 更新紀錄">
-            {CHANGELOG.map((c, i) => (
-              <div key={i} style={{ marginBottom: i < CHANGELOG.length - 1 ? "0.7rem" : 0 }}>
+            {(changelogOpen ? CHANGELOG : CHANGELOG.slice(0, 1)).map((c, i) => (
+              <div key={i} style={{ marginBottom: "0.7rem" }}>
                 <div style={{ fontWeight: 700, color: "#3A2E1F" }}>
                   {c.version} <span style={{ fontWeight: 400, color: "#A99B85" }}>· {c.date}</span>
                 </div>
                 <div>{c.notes}</div>
               </div>
             ))}
+            <button
+              onClick={() => setChangelogOpen((v) => !v)}
+              style={{
+                marginTop: "0.2rem",
+                padding: "0.4rem 0.8rem",
+                borderRadius: "0.6rem",
+                border: "1px solid #D8CBA8",
+                background: "transparent",
+                color: "#8A7A5E",
+                fontWeight: 600,
+                fontSize: "0.75rem",
+                cursor: "pointer",
+              }}
+            >
+              {changelogOpen ? "收合" : `展開查看全部 ${CHANGELOG.length} 筆更新紀錄`}
+            </button>
           </Section>
         </div>
       </div>
