@@ -4,12 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>西文單字學習</title>
-<link rel="icon" href="/icons/favicon.ico" sizes="any">
-<link rel="icon" href="/icons/favicon-32.png" type="image/png" sizes="32x32">
-<link rel="icon" href="/icons/favicon-16.png" type="image/png" sizes="16x16">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
-<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+<link rel="icon" href="icons/favicon.ico" sizes="any">
+<link rel="icon" href="icons/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="icons/favicon-16.png" type="image/png" sizes="16x16">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="西文單字" />
@@ -146,10 +146,15 @@ const LOCAL_STORAGE_KEY = "esVocabApp.v1";
 // App info / version (shown on the "說明" screen)
 // ---------------------------------------------------------------------------
 const APP_MAKER = "Quinny";
-const APP_VERSION = "v4.8.1";
+const APP_VERSION = "v4.8.2";
 const APP_UPDATED = "2026-08-20";
 // Add a new entry to the TOP of this array whenever you ship a new version.
 const CHANGELOG = [
+  {
+    version: "v4.8.2",
+    date: "2026-08-20",
+    notes: "修正網站圖示(favicon/手機加到主畫面的圖示)404 問題:6 個圖示連結原本寫成「/icons/xxx」(絕對路徑),在 GitHub Pages 這種「網站不是架在網域根目錄、而是架在子路徑」的情況下會連到錯誤位置而讀不到檔案,導致手機「加入主畫面」的圖示顯示壞掉。改成相對路徑「icons/xxx」後就會正確跟著目前網址位置去找圖示檔案。",
+  },
   {
     version: "v4.8.1",
     date: "2026-08-20",
