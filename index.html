@@ -146,10 +146,15 @@ const LOCAL_STORAGE_KEY = "esVocabApp.v1";
 // App info / version (shown on the "說明" screen)
 // ---------------------------------------------------------------------------
 const APP_MAKER = "Quinny";
-const APP_VERSION = "v4.8.2";
+const APP_VERSION = "v4.8.3";
 const APP_UPDATED = "2026-08-20";
 // Add a new entry to the TOP of this array whenever you ship a new version.
 const CHANGELOG = [
+  {
+    version: "v4.8.3",
+    date: "2026-08-20",
+    notes: "細節調整四項:①「跳過聽力題」勾選框文字拿掉括號說明,只留「跳過聽力題」;②取消 v4.8.0 加入的「還沒到複習日就鎖住關卡」機制,關卡現在任何時候都能自由重玩、複習,不再有 🔒 鎖定畫面;③分級/主題/分頁標籤的複習提醒,從「外框線外再加一圈紅框」改成「紅色直接取代原本的外框線」,不會看起來多一圈線;④「複數形式」小關卡的入口,從關卡格子左上角一個小小的 📘 圖示,改成在對應關卡格子後面直接新增一個獨立格子(標示「📘 N-los/las」),跟一般小關卡一樣是關卡地圖上的完整格子,更好按也更好發現。",
+  },
   {
     version: "v4.8.2",
     date: "2026-08-20",
@@ -4647,8 +4652,6 @@ function SpanishVocab() {
     return map;
   }, [chapters, srs, mode, activeKey]);
 
-  const DUE_RING = "0 0 0 2px #C0392B";
-
   // -----------------------------------------------------------------------
   // Mistake-book derived data
   // -----------------------------------------------------------------------
@@ -4685,18 +4688,8 @@ function SpanishVocab() {
 
   const stageProgKey = (stageWords) => progKeyFor(mode, activeKey, stageWords);
 
-  // v4.8.0 item ②: a stage can only be (re)entered on a day the existing SRS
-  // schedule actually calls for a review — i.e. reviewStatus.state is "new"
-  // (never played), "due" (today IS a scheduled review day), or "done"
-  // (graduated past Day 14, free to practice anytime). "waiting" means today
-  // isn't a scheduled day yet — this also naturally locks out same-day
-  // replays, since finishing a due review advances stepIndex, which
-  // immediately flips the status to "waiting" until the next scheduled date.
-  const isStageLocked = (key) => stageReviewStatus(srs[key]).state === "waiting";
-
   const enterStage = (stageWords, stageLabel) => {
     const key = stageProgKey(stageWords);
-    if (isStageLocked(key)) return;
     setActiveStage({ key, words: stageWords, stageLabel, kind: "stage" });
     setSkipListening(false);
     setScreen("lesson");
@@ -5198,7 +5191,7 @@ function SpanishVocab() {
                     width: "3.6rem",
                     height: "3.6rem",
                     borderRadius: "9999px",
-                    border: `2px dashed ${active ? li.color : "#ECDFCA"}`,
+                    border: `2px dashed ${levelDueMap[l] ? "#C0392B" : active ? li.color : "#ECDFCA"}`,
                     background: active ? li.light : "transparent",
                     color: active ? li.color : "#A99B85",
                     fontFamily: "'IBM Plex Mono', monospace",
@@ -5210,7 +5203,6 @@ function SpanishVocab() {
                     transform: active ? "rotate(-6deg)" : "rotate(0deg)",
                     transition: "all 0.2s ease",
                     cursor: "pointer",
-                    boxShadow: levelDueMap[l] ? DUE_RING : "none",
                   }}
                 >
                   {l}
@@ -5235,14 +5227,13 @@ function SpanishVocab() {
                     gap: "0.35rem",
                     padding: "0.5rem 0.8rem",
                     borderRadius: "9999px",
-                    border: `1.5px solid ${active ? ti.color : "#ECDFCA"}`,
+                    border: `1.5px solid ${themeDueMap[t] ? "#C0392B" : active ? ti.color : "#ECDFCA"}`,
                     background: active ? ti.light : "transparent",
                     color: active ? ti.color : "#A99B85",
                     fontWeight: 600,
                     fontSize: "0.78rem",
                     cursor: "pointer",
                     whiteSpace: "nowrap",
-                    boxShadow: themeDueMap[t] ? DUE_RING : "none",
                   }}
                 >
                   <span style={{ fontSize: "0.95rem" }}>{ti.icon}</span>
@@ -5266,7 +5257,7 @@ function SpanishVocab() {
                     flexShrink: 0,
                     padding: "0.45rem 0.8rem",
                     borderRadius: "0.6rem",
-                    border: `1px solid ${active ? info.color : "#ECDFCA"}`,
+                    border: `1px solid ${chapterDueMap[c.index] ? "#C0392B" : active ? info.color : "#ECDFCA"}`,
                     background: active ? info.light : "transparent",
                     color: active ? info.color : "#A99B85",
                     fontFamily: "'IBM Plex Mono', monospace",
@@ -5274,7 +5265,6 @@ function SpanishVocab() {
                     fontWeight: 600,
                     cursor: "pointer",
                     whiteSpace: "nowrap",
-                    boxShadow: chapterDueMap[c.index] ? DUE_RING : "none",
                   }}
                 >
                   單字 {c.range}
@@ -5294,16 +5284,12 @@ function SpanishVocab() {
                 gap: "0.7rem",
               }}
             >
-              {(currentChapter?.stages || []).map((stage, localIdx) => {
+              {(currentChapter?.stages || []).flatMap((stage, localIdx) => {
                 const key = stageProgKey(stage.words);
                 const prog = progress[key];
                 const rec = srs[key];
                 const reviewStatus = stageReviewStatus(rec);
                 const isDue = reviewStatus.state === "due";
-                // v4.8.0 item ②: "waiting" = today isn't one of this stage's
-                // scheduled SRS review days (or it was already completed
-                // today) — locked until the next due date.
-                const isLocked = reviewStatus.state === "waiting";
                 // Use localIdx (position within THIS chapter) rather than
                 // stage.index (position across the whole word bank) — using
                 // the global index here double-counted the chapter offset
@@ -5312,101 +5298,103 @@ function SpanishVocab() {
                 // (chapter 2's first stage is 11, not 1 again), since chapters
                 // are just a pagination grouping, not a separate counting unit.
                 const stageNumber = currentChapter.index * CHAPTERS_STAGE_COUNT + localIdx + 1;
-                // v4.8.0 item ⑧: the "複數形式" sub-stage unlocks once the
-                // Day-3 review (SRS_SCHEDULE index 1) has been consumed —
-                // i.e. rec.stepIndex has moved past it — and only if this
-                // stage actually has enough plural-eligible nouns to be
-                // worth a sub-stage at all.
+                // v4.8.0 item ⑧ / v4.8.3 redesign: the "複數形式" sub-stage
+                // unlocks once the Day-3 review (SRS_SCHEDULE index 1) has
+                // been consumed — i.e. rec.stepIndex has moved past it — and
+                // only if this stage actually has enough plural-eligible
+                // nouns to be worth a sub-stage at all. It now renders as its
+                // own grid tile immediately after the parent stage's tile
+                // (instead of a small overlay icon), so it's a first-class,
+                // independently clickable item in the grid.
                 const pluralWords = pluralEligibleWords(stage.words);
                 const pluralReady = !!rec && rec.stepIndex >= 2 && pluralWords.length >= PLURAL_SUBSTAGE_MIN_WORDS;
-                return (
-                  // v4.8.0 item ⑧ fix: the 📘 plural-substage icon must stay
-                  // clickable even when the main stage tile is disabled
-                  // (locked) — which is common right when the icon first
-                  // appears (day 3-7 gap). A native <button disabled> makes
-                  // its whole subtree inert in the browser regardless of the
-                  // child's own onClick/stopPropagation, so the icon can't
-                  // be a descendant of that button — it's a sibling instead,
-                  // positioned over the same wrapping tile.
-                  <div key={stage.index} style={{ position: "relative" }}>
+
+                const tiles = [
+                  <button
+                    key={stage.index}
+                    onClick={() => enterStage(stage.words, `第 ${stageNumber} 關`)}
+                    style={{
+                      width: "100%",
+                      position: "relative",
+                      background: prog ? info.light : "#F9F1E6",
+                      border: `1.5px solid ${isDue ? "#C0392B" : prog ? info.color : "#ECDFCA"}`,
+                      borderRadius: "0.85rem",
+                      padding: "0.75rem 0.5rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: "0.3rem",
+                      cursor: "pointer",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    {isDue && (
+                      <span
+                        title="該複習了"
+                        style={{
+                          position: "absolute",
+                          top: "0.4rem",
+                          right: "0.4rem",
+                          width: "0.5rem",
+                          height: "0.5rem",
+                          borderRadius: "9999px",
+                          background: "#C0392B",
+                        }}
+                      />
+                    )}
+                    <span
+                      style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontWeight: 700,
+                        fontSize: "0.95rem",
+                        color: prog ? info.color : "#C9B89E",
+                      }}
+                    >
+                      {stageNumber}
+                    </span>
+                    <span style={{ fontSize: "0.62rem", color: isDue ? "#C0392B" : "#A99B85", fontWeight: isDue ? 700 : 400 }}>
+                      {isDue ? "🔔 該複習了" : prog ? `玩過 ${prog.plays} 次` : "未挑戰"}
+                    </span>
+                  </button>,
+                ];
+
+                if (pluralReady) {
+                  tiles.push(
                     <button
-                      onClick={() => enterStage(stage.words, `第 ${stageNumber} 關`)}
-                      disabled={isLocked}
+                      key={`${stage.index}-plural`}
+                      title="複數形式練習"
+                      onClick={() => enterPluralStage(stage.words, `第 ${stageNumber} 關 · 複數形式`)}
                       style={{
                         width: "100%",
-                        background: prog ? info.light : "#F9F1E6",
-                        border: `1.5px solid ${isDue ? "#C0392B" : prog ? info.color : "#ECDFCA"}`,
+                        background: "#EFE6D0",
+                        border: "1.5px dashed #B7A688",
                         borderRadius: "0.85rem",
                         padding: "0.75rem 0.5rem",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
                         gap: "0.3rem",
-                        cursor: isLocked ? "not-allowed" : "pointer",
-                        opacity: isLocked ? 0.55 : 1,
+                        cursor: "pointer",
                         boxSizing: "border-box",
                       }}
                     >
-                      {isDue && (
-                        <span
-                          title="該複習了"
-                          style={{
-                            position: "absolute",
-                            top: "0.4rem",
-                            right: "0.4rem",
-                            width: "0.5rem",
-                            height: "0.5rem",
-                            borderRadius: "9999px",
-                            background: "#C0392B",
-                          }}
-                        />
-                      )}
+                      <span style={{ fontSize: "1.05rem" }}>📘</span>
                       <span
                         style={{
                           fontFamily: "'IBM Plex Mono', monospace",
                           fontWeight: 700,
-                          fontSize: "0.95rem",
-                          color: prog ? info.color : "#C9B89E",
+                          fontSize: "0.78rem",
+                          color: "#8A7A5E",
                         }}
                       >
-                        {stageNumber}
+                        {stageNumber}-los/las
                       </span>
-                      <span style={{ fontSize: "0.62rem", color: isDue ? "#C0392B" : "#A99B85", fontWeight: isDue ? 700 : 400 }}>
-                        {isLocked
-                          ? `🔒 ${reviewStatus.dueDate ? reviewStatus.dueDate.slice(5) : ""} 再複習`
-                          : isDue
-                          ? "🔔 該複習了"
-                          : prog
-                          ? `玩過 ${prog.plays} 次`
-                          : "未挑戰"}
-                      </span>
+                      <span style={{ fontSize: "0.6rem", color: "#A99B85" }}>複數練習</span>
                     </button>
-                    {pluralReady && (
-                      <button
-                        title="複數形式練習"
-                        onClick={() => enterPluralStage(stage.words, `第 ${stageNumber} 關 · 複數形式`)}
-                        style={{
-                          position: "absolute",
-                          top: "0.35rem",
-                          left: "0.35rem",
-                          width: "1.15rem",
-                          height: "1.15rem",
-                          borderRadius: "9999px",
-                          background: "#EFE6D0",
-                          border: "none",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "0.62rem",
-                          padding: 0,
-                          cursor: "pointer",
-                        }}
-                      >
-                        📘
-                      </button>
-                    )}
-                  </div>
-                );
+                  );
+                }
+
+                return tiles;
               })}
             </div>
           </div>
@@ -5522,8 +5510,6 @@ function SpanishVocab() {
       activeStage.kind === "mistake" || activeStage.kind === "plural"
         ? activeStage.stageLabel
         : `${info.label} · ${activeStage.stageLabel}`;
-    const stageLockKey = activeStage.kind === "stage" ? activeStage.key : null;
-    const lessonLocked = stageLockKey ? isStageLocked(stageLockKey) : false;
     return (
       <div style={{ minHeight: "100vh", background: "#FDF6EC", fontFamily: "'Inter', sans-serif", paddingBottom: "9.5rem" }}>
         <TopBar title={lessonTitle} onBack={backToMap} />
@@ -5628,27 +5614,7 @@ function SpanishVocab() {
             background: "linear-gradient(to top, #FDF6EC 75%, transparent)",
           }}
         >
-          {lessonLocked ? (
-            <div
-              style={{
-                width: "100%",
-                padding: "0.9rem",
-                borderRadius: "0.8rem",
-                background: "#EFE6D0",
-                color: "#8A7A5E",
-                fontWeight: 600,
-                fontSize: "0.85rem",
-                textAlign: "center",
-                boxSizing: "border-box",
-              }}
-            >
-              🔒 今天不是這一關的複習日,{(() => {
-                const s = stageReviewStatus(srs[stageLockKey]);
-                return s.dueDate ? `下次複習:${s.dueDate}` : "請稍後再回來";
-              })()}
-            </div>
-          ) : (
-            <React.Fragment>
+          <React.Fragment>
               {activeStage.kind !== "plural" && (
                 <label
                   style={{
@@ -5671,7 +5637,7 @@ function SpanishVocab() {
                     checked={skipListening}
                     onChange={(e) => setSkipListening(e.target.checked)}
                   />
-                  跳過聽力題(本次測驗有效,不會被記住)
+                  跳過聽力題
                 </label>
               )}
               <button
@@ -5696,7 +5662,6 @@ function SpanishVocab() {
                 <Play size={16} /> {activeStage.kind === "plural" ? "開始複數測驗" : "開始測驗"}
               </button>
             </React.Fragment>
-          )}
         </div>
 
         {pluralPopup && (
@@ -6209,10 +6174,6 @@ function SpanishVocab() {
   // ---------------------------------------------------------------------
   if (screen === "result" && resultData) {
     const tier = masteryTier(resultData.accuracy);
-    // v4.8.0 item ②: finishing a due (or first-ever) review just consumed
-    // today's SRS slot, so the stage is very likely locked again right now —
-    // don't offer a same-day "再玩一次" for a regular stage in that case.
-    const resultLocked = activeStage.kind === "stage" && isStageLocked(activeStage.key);
     return (
       <div
         style={{
@@ -6261,24 +6222,7 @@ function SpanishVocab() {
             ))}
           </div>
 
-          {resultLocked ? (
-            <div
-              style={{
-                marginTop: "1.6rem",
-                width: "100%",
-                padding: "0.8rem",
-                borderRadius: "0.75rem",
-                background: "#EFE6D0",
-                color: "#8A7A5E",
-                fontWeight: 600,
-                fontSize: "0.82rem",
-                boxSizing: "border-box",
-              }}
-            >
-              🔒 今天已經完成這一關,下次複習再見
-            </div>
-          ) : (
-            <button
+          <button
               onClick={replayStage}
               style={{
                 marginTop: "1.6rem",
@@ -6298,7 +6242,6 @@ function SpanishVocab() {
             >
               <RotateCcw size={15} /> 再玩一次
             </button>
-          )}
           <button
             onClick={backToMap}
             style={{
@@ -6348,11 +6291,7 @@ function SpanishVocab() {
             <br />
             <br />
             這個提醒只會顯示在 App 畫面裡(關卡會標示「🔔
-            該複習了」),因為這是純前端的靜態網頁、沒有伺服器,無法在你關掉分頁後主動推播通知——請養成定期打開 App 看看有沒有關卡該複習的習慣。
-            <br />
-            <br />
-            從 v4.8.0 開始,還沒到複習日的關卡會直接鎖住(顯示「🔒
-            下次複習日期」,無法重玩),避免同一天內重複刷同一關;剛完成一次到期複習後,那一關也會立刻鎖到下一個排定日,同一天內不能再玩一次。
+            該複習了」),因為這是純前端的靜態網頁、沒有伺服器,無法在你關掉分頁後主動推播通知——請養成定期打開 App 看看有沒有關卡該複習的習慣。關卡沒有鎖定機制,任何時候都可以自由重玩、複習。
           </Section>
 
           <Section title="✏️ 測驗小技巧">
@@ -6363,7 +6302,7 @@ function SpanishVocab() {
             聽力題(聽音辨義)出現時會自動播放一次發音;如果不方便開音效,也可以在關卡開始前勾選「跳過聽力題」——這個設定只在當次測驗有效,不會被記住。
             <br />
             <br />
-            有些關卡完成第 3 天複習後,左上角會出現「📘」小圖示,可以額外練習這批單字的複數形式(教學 + 測驗),這是獨立的加強練習,不影響主要的複習排程。
+            有些關卡完成第 3 天複習後,關卡地圖上會直接多出一個「📘 N-los/las」的複數練習關卡,可以額外練習這批單字的複數形式(教學 + 測驗),這是獨立的加強練習,不影響主要的複習排程。
           </Section>
 
           <Section title="📕 錯題本與錯題關卡">
