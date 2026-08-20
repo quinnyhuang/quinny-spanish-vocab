@@ -115,6 +115,46 @@ const Star = ({ fill = "none", stroke = "currentColor", size = 16, ...props }) =
 const Play = (props) =>
   React.createElement(Icon, props, React.createElement("polygon", { points: "5 3 19 12 5 21 5 3" }));
 
+// v4.9.0: added for the check-in calendar / streak / points feature, and to
+// replace the 📘 emoji on the plural sub-stage tile (user feedback: emoji
+// render inconsistently across devices/system fonts; these inline-SVG icons
+// match the rest of the app's icon style exactly instead).
+const Sparkles = (props) =>
+  React.createElement(
+    Icon,
+    props,
+    React.createElement("path", {
+      d: "m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z",
+    })
+  );
+
+const CalendarIcon = (props) =>
+  React.createElement(
+    Icon,
+    props,
+    React.createElement("path", { d: "M8 2v4" }),
+    React.createElement("path", { d: "M16 2v4" }),
+    React.createElement("rect", { width: 18, height: 18, x: 3, y: 4, rx: 2 }),
+    React.createElement("path", { d: "M3 10h18" })
+  );
+
+const Flame = (props) =>
+  React.createElement(
+    Icon,
+    props,
+    React.createElement("path", {
+      d: "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z",
+    })
+  );
+
+const Lock = (props) =>
+  React.createElement(
+    Icon,
+    props,
+    React.createElement("rect", { width: 18, height: 11, x: 3, y: 11, rx: 2, ry: 2 }),
+    React.createElement("path", { d: "M7 11V7a5 5 0 0 1 10 0v4" })
+  );
+
 // ===========================================================================
 // Config
 // ===========================================================================
@@ -146,10 +186,15 @@ const LOCAL_STORAGE_KEY = "esVocabApp.v1";
 // App info / version (shown on the "說明" screen)
 // ---------------------------------------------------------------------------
 const APP_MAKER = "Quinny";
-const APP_VERSION = "v4.8.3";
+const APP_VERSION = "v4.9.0";
 const APP_UPDATED = "2026-08-20";
 // Add a new entry to the TOP of this array whenever you ship a new version.
 const CHANGELOG = [
+  {
+    version: "v4.9.0",
+    date: "2026-08-20",
+    notes: "新增打卡日曆、點數與分級解鎖:①地圖上方新增「連續N天‧點數」小卡片,點下去打開打卡日曆,可以手動打卡(+10點/次)、看目前連續天數與完整月曆;②完成一次小關卡測驗額外拿10點(沒有每日上限);③一整週(週一到週日)七天都打卡,當週加碼+50點;④A2/B1/B2 分級與 A1 第5、6大關改成用點數解鎖(門檻:A1第5大關50點、第6大關100點、A2 150點、B1 600點、B2 1200點),鎖定的分級/大關仍會顯示在地圖上(不是整個隱藏),點擊會顯示還差多少點,達標後自動解鎖;「主題」分頁不受影響,一直都能自由練習。另外把複數子關卡格子上的 📘 emoji 換成跟其他按鈕同一套線條圖示(✨ Sparkles),emoji 在不同裝置/系統上長相不一致,換成內建 SVG 圖示後風格統一。",
+  },
   {
     version: "v4.8.3",
     date: "2026-08-20",
@@ -4430,6 +4475,71 @@ function addDaysStr(dateStr, days) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// ---------------------------------------------------------------------------
+// v4.9.0: check-in / streak / points helpers
+// ---------------------------------------------------------------------------
+// Monday-start day-of-week index (0 = Monday ... 6 = Sunday), used so "一整週
+// 全勤" lines up with a normal calendar week rather than a rolling 7-day
+// window (confirmed with the user — 日曆週一到週日).
+function mondayIndex(dateStr) {
+  const jsDay = new Date(`${dateStr}T00:00:00`).getDay(); // 0=Sun..6=Sat
+  return (jsDay + 6) % 7;
+}
+
+// The Monday that starts dateStr's calendar week, as a "YYYY-MM-DD" string.
+function weekStartStr(dateStr) {
+  return addDaysStr(dateStr, -mondayIndex(dateStr));
+}
+
+// A stable key identifying a Mon–Sun week (just uses the Monday's date —
+// simpler and just as unique as an ISO "YYYY-Wnn" label, no week-numbering
+// edge cases to worry about at year boundaries).
+function weekKeyFor(dateStr) {
+  return weekStartStr(dateStr);
+}
+
+// All 7 "YYYY-MM-DD" dates (Monday..Sunday) of the week dateStr falls in.
+function weekDates(dateStr) {
+  const start = weekStartStr(dateStr);
+  return Array.from({ length: 7 }, (_, i) => addDaysStr(start, i));
+}
+
+// Current consecutive-day streak. Counts backward from today if today is
+// already checked in; otherwise counts backward from yesterday (a streak
+// isn't considered "broken" just because today hasn't happened yet).
+function computeStreak(checkins, today) {
+  let cursor = checkins[today] ? today : addDaysStr(today, -1);
+  let streak = 0;
+  while (checkins[cursor]) {
+    streak++;
+    cursor = addDaysStr(cursor, -1);
+  }
+  return streak;
+}
+
+// v4.9.0 item④/⑤: point values + unlock thresholds, finalized with the user
+// via AskUserQuestion on 2026-08-20 (see project doc for the derivation).
+const POINTS_CHECKIN = 10;
+const POINTS_STAGE_COMPLETE = 10;
+const POINTS_FULL_WEEK_BONUS = 50;
+// A1 chapters 0-3 (words 1-400) are always free; chapter 4 (401-500) and
+// chapter 5 (501-503) gate on points. A2/B1/B2 gate at the whole-level.
+const A1_CHAPTER_UNLOCK_POINTS = { 4: 50, 5: 100 };
+const LEVEL_UNLOCK_POINTS = { A2: 150, B1: 600, B2: 1200 };
+
+function levelUnlockPoints(level) {
+  return LEVEL_UNLOCK_POINTS[level] || 0; // A1 (and anything not listed) = always unlocked
+}
+function isLevelUnlocked(level, pts) {
+  return pts >= levelUnlockPoints(level);
+}
+function a1ChapterUnlockPoints(chapterIdx) {
+  return A1_CHAPTER_UNLOCK_POINTS[chapterIdx] || 0;
+}
+function isA1ChapterUnlocked(chapterIdx, pts) {
+  return pts >= a1ChapterUnlockPoints(chapterIdx);
+}
+
 // Given an SRS record { day1Date, stepIndex }, figure out whether a review is
 // currently due. stepIndex points at the NEXT pending review in SRS_SCHEDULE
 // (0 = Day 2, 1 = Day 3, 2 = Day 7, 3 = Day 14). Once stepIndex reaches
@@ -4605,14 +4715,35 @@ function SpanishVocab() {
   const [progress, setProgress] = useState(savedState.progress || {}); // stageKey -> { plays, bestAccuracy, lastAccuracy }
   const [srs, setSrs] = useState(savedState.srs || {}); // stageKey -> { day1Date, stepIndex }
   const [mistakes, setMistakes] = useState(savedState.mistakes || {}); // es -> { word, sourceLabel, day1Date, stepIndex, cycles }
+  // v4.9.0: daily check-in calendar + points + level/chapter unlocking.
+  // checkins: "YYYY-MM-DD" -> true (a day the user tapped 打卡 on).
+  // points: running total, never decreases.
+  // bonusWeeks: isoWeekKey (e.g. "2026-W34") -> true, marks a Mon–Sun week
+  // that has already paid out its +50 全勤 bonus, so it can't be re-awarded
+  // if the check-in screen is revisited after the week is already complete.
+  const [checkins, setCheckins] = useState(savedState.checkins || {});
+  const [points, setPoints] = useState(savedState.points || 0);
+  const [bonusWeeks, setBonusWeeks] = useState(savedState.bonusWeeks || {});
+  const [unlockMessage, setUnlockMessage] = useState(null);
 
   useEffect(() => {
     try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ progress, srs, mistakes }));
+      localStorage.setItem(
+        LOCAL_STORAGE_KEY,
+        JSON.stringify({ progress, srs, mistakes, checkins, points, bonusWeeks })
+      );
     } catch (e) {
       /* localStorage unavailable (private mode / storage full) — progress just won't persist */
     }
-  }, [progress, srs, mistakes]);
+  }, [progress, srs, mistakes, checkins, points, bonusWeeks]);
+
+  // Transient "還差 X 點解鎖" banner shown when tapping a locked level/chapter.
+  // Auto-dismisses so it doesn't require an extra tap to clear.
+  useEffect(() => {
+    if (!unlockMessage) return;
+    const t = setTimeout(() => setUnlockMessage(null), 2600);
+    return () => clearTimeout(t);
+  }, [unlockMessage]);
 
   const activeKey = mode === "level" ? level : mode === "theme" ? theme : "mistake";
   const info = mode === "level" ? LEVEL_INFO[level] : mode === "theme" ? THEME_INFO[theme] : MISTAKE_INFO;
@@ -4675,7 +4806,18 @@ function SpanishVocab() {
     setChapterIdx(0);
     setScreen("map");
   };
+  // v4.9.0 item⑤: A2/B1/B2 are gated on total points (A1 is always free at
+  // the level level — only specific A1 chapters are gated, handled by
+  // selectChapter below). Tapping a locked level shows a transient banner
+  // instead of switching, so the tab is still visible/tappable (not hidden)
+  // — consistent with the existing "顯示但鎖定" pattern the stage tiles used
+  // to use, and lets the user see what's coming without drilling in.
   const changeLevel = (l) => {
+    if (!isLevelUnlocked(l, points)) {
+      const need = levelUnlockPoints(l) - points;
+      setUnlockMessage(`🔒 ${l} 還差 ${need} 點解鎖(目前 ${points} 點)`);
+      return;
+    }
     setLevel(l);
     setChapterIdx(0);
     setScreen("map");
@@ -4684,6 +4826,38 @@ function SpanishVocab() {
     setTheme(t);
     setChapterIdx(0);
     setScreen("map");
+  };
+  // Only A1 chapters are individually gated; every other level/theme's
+  // chapters are free once the level itself is unlocked.
+  const selectChapter = (idx) => {
+    if (mode === "level" && level === "A1" && !isA1ChapterUnlocked(idx, points)) {
+      const need = a1ChapterUnlockPoints(idx) - points;
+      setUnlockMessage(`🔒 這個大關還差 ${need} 點解鎖(目前 ${points} 點)`);
+      return;
+    }
+    setChapterIdx(idx);
+  };
+
+  // v4.9.0 item③④: tapping "打卡" on the check-in calendar screen. A no-op if
+  // today is already checked in (guards against double-counting from a
+  // stray extra click/tap). Also checks whether today's check-in completes
+  // a full Mon–Sun week (item④'s +50 全勤 bonus) — computed against the
+  // updated checkins map (including today) so the bonus can fire on the same
+  // tap that completes the week, not one day late.
+  const handleCheckin = () => {
+    const today = todayStr();
+    if (checkins[today]) return;
+    const updatedCheckins = { ...checkins, [today]: true };
+    setCheckins(updatedCheckins);
+
+    const wKey = weekKeyFor(today);
+    const weekComplete = weekDates(today).every((d) => updatedCheckins[d]);
+    const alreadyPaid = !!bonusWeeks[wKey];
+    const earnedThisTap = POINTS_CHECKIN + (weekComplete && !alreadyPaid ? POINTS_FULL_WEEK_BONUS : 0);
+    setPoints((p) => p + earnedThisTap);
+    if (weekComplete && !alreadyPaid) {
+      setBonusWeeks((prev) => ({ ...prev, [wKey]: true }));
+    }
   };
 
   const stageProgKey = (stageWords) => progKeyFor(mode, activeKey, stageWords);
@@ -4931,6 +5105,13 @@ function SpanishVocab() {
           };
         });
 
+        // v4.9.0 item④: completing a regular stage quiz earns points, every
+        // time (no daily cap, no "first time only" restriction — matches the
+        // confirmed design: "完成一個小關卡:+10點"). Mistake reviews and the
+        // plural sub-stage deliberately do NOT earn points here, since only
+        // this branch (kind === "stage") runs this code.
+        setPoints((p) => p + POINTS_STAGE_COMPLETE);
+
         // Spaced-repetition bookkeeping for this stage.
         const rec = srs[activeStage.key];
         if (!rec) {
@@ -4975,6 +5156,7 @@ function SpanishVocab() {
         total,
         accuracy,
         attemptNumber: quizState.attemptNumber,
+        pointsEarned: activeStage.kind === "stage" ? POINTS_STAGE_COMPLETE : 0,
       });
       setScreen("result");
     } else {
@@ -5133,6 +5315,68 @@ function SpanishVocab() {
           </p>
         </div>
 
+        {/* v4.9.0 item③④: always-visible streak/points summary, tap to open
+            the check-in calendar. Placed here (top of map, above the mode
+            tabs) per the user's preference so progress is visible without an
+            extra tap to find it. */}
+        <div style={{ padding: "0 1.5rem 1.1rem" }}>
+          <button
+            onClick={() => setScreen("checkin")}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "1.1rem",
+              background: "#F9F1E6",
+              border: "1px solid #ECDFCA",
+              borderRadius: "0.8rem",
+              padding: "0.6rem",
+              cursor: "pointer",
+            }}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "#B85C2E" }}>
+              <Flame size={15} />
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "0.85rem" }}>
+                連續 {computeStreak(checkins, todayStr())} 天
+              </span>
+            </span>
+            <span style={{ width: "1px", height: "1rem", background: "#ECDFCA" }} />
+            <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "#B98A2E" }}>
+              <Sparkles size={15} />
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "0.85rem" }}>
+                {points} 點
+              </span>
+            </span>
+            <span style={{ width: "1px", height: "1rem", background: "#ECDFCA" }} />
+            <span style={{ display: "flex", alignItems: "center", color: "#A99B85" }}>
+              <CalendarIcon size={15} />
+            </span>
+          </button>
+        </div>
+
+        {unlockMessage && (
+          <div
+            style={{
+              position: "fixed",
+              left: "50%",
+              bottom: "1.4rem",
+              transform: "translateX(-50%)",
+              background: "#3A2E1F",
+              color: "#F5EFE0",
+              padding: "0.65rem 1.1rem",
+              borderRadius: "0.7rem",
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              boxShadow: "0 4px 14px rgba(0,0,0,0.18)",
+              zIndex: 50,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {unlockMessage}
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: "0.5rem", padding: "0 1.5rem 1rem" }}>
           {[
             { key: "level", label: "分級" },
@@ -5182,30 +5426,41 @@ function SpanishVocab() {
             {LEVELS.map((l) => {
               const active = l === level;
               const li = LEVEL_INFO[l];
+              const locked = !isLevelUnlocked(l, points);
               return (
                 <button
                   key={l}
                   onClick={() => changeLevel(l)}
+                  title={locked ? `還差 ${levelUnlockPoints(l) - points} 點解鎖` : undefined}
                   style={{
                     flexShrink: 0,
                     width: "3.6rem",
                     height: "3.6rem",
                     borderRadius: "9999px",
-                    border: `2px dashed ${levelDueMap[l] ? "#C0392B" : active ? li.color : "#ECDFCA"}`,
+                    border: `2px dashed ${locked ? "#D8CBA8" : levelDueMap[l] ? "#C0392B" : active ? li.color : "#ECDFCA"}`,
                     background: active ? li.light : "transparent",
-                    color: active ? li.color : "#A99B85",
+                    color: locked ? "#C9B89E" : active ? li.color : "#A99B85",
                     fontFamily: "'IBM Plex Mono', monospace",
                     fontWeight: 600,
                     fontSize: "0.95rem",
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
+                    gap: "0.05rem",
                     transform: active ? "rotate(-6deg)" : "rotate(0deg)",
                     transition: "all 0.2s ease",
                     cursor: "pointer",
                   }}
                 >
-                  {l}
+                  {locked ? (
+                    <React.Fragment>
+                      <Lock size={13} />
+                      <span style={{ fontSize: "0.5rem" }}>{levelUnlockPoints(l)}pt</span>
+                    </React.Fragment>
+                  ) : (
+                    l
+                  )}
                 </button>
               );
             })}
@@ -5249,17 +5504,22 @@ function SpanishVocab() {
           <div style={{ display: "flex", gap: "0.5rem", padding: "0 1.5rem 1rem", overflowX: "auto" }}>
             {chapters.map((c) => {
               const active = c.index === chapterIdx;
+              const locked = mode === "level" && level === "A1" && !isA1ChapterUnlocked(c.index, points);
               return (
                 <button
                   key={c.index}
-                  onClick={() => setChapterIdx(c.index)}
+                  onClick={() => selectChapter(c.index)}
+                  title={locked ? `還差 ${a1ChapterUnlockPoints(c.index) - points} 點解鎖` : undefined}
                   style={{
                     flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
                     padding: "0.45rem 0.8rem",
                     borderRadius: "0.6rem",
-                    border: `1px solid ${chapterDueMap[c.index] ? "#C0392B" : active ? info.color : "#ECDFCA"}`,
-                    background: active ? info.light : "transparent",
-                    color: active ? info.color : "#A99B85",
+                    border: `1px solid ${locked ? "#ECDFCA" : chapterDueMap[c.index] ? "#C0392B" : active ? info.color : "#ECDFCA"}`,
+                    background: active && !locked ? info.light : "transparent",
+                    color: locked ? "#C9B89E" : active ? info.color : "#A99B85",
                     fontFamily: "'IBM Plex Mono', monospace",
                     fontSize: "0.75rem",
                     fontWeight: 600,
@@ -5267,7 +5527,14 @@ function SpanishVocab() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  單字 {c.range}
+                  {locked ? (
+                    <React.Fragment>
+                      <Lock size={11} />
+                      {a1ChapterUnlockPoints(c.index)} 點解鎖
+                    </React.Fragment>
+                  ) : (
+                    `單字 ${c.range}`
+                  )}
                 </button>
               );
             })}
@@ -5378,7 +5645,7 @@ function SpanishVocab() {
                         boxSizing: "border-box",
                       }}
                     >
-                      <span style={{ fontSize: "1.05rem" }}>📘</span>
+                      <Sparkles size={17} color="#B98A2E" />
                       <span
                         style={{
                           fontFamily: "'IBM Plex Mono', monospace",
@@ -5498,6 +5765,142 @@ function SpanishVocab() {
             )}
           </div>
         )}
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Screen: CHECKIN (v4.9.0 item③④: daily check-in calendar + streak + points)
+  // ---------------------------------------------------------------------
+  if (screen === "checkin") {
+    const today = todayStr();
+    const checkedInToday = !!checkins[today];
+    const streak = computeStreak(checkins, today);
+    const now = new Date();
+    const year = now.getFullYear();
+    const monthIdx0 = now.getMonth(); // 0-based
+    const monthLabel = `${year}年${monthIdx0 + 1}月`;
+    const daysInMonth = new Date(year, monthIdx0 + 1, 0).getDate();
+    const firstWeekdayMon = (new Date(year, monthIdx0, 1).getDay() + 6) % 7; // 0=Mon..6=Sun
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const cells = [];
+    for (let i = 0; i < firstWeekdayMon; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+    // "距離下一個解鎖還差幾點" — the closest not-yet-reached threshold across
+    // the gated A1 chapters and A2/B1/B2 levels, so there's always a concrete
+    // next goal shown even once a few things are already unlocked.
+    const allThresholds = [
+      ...Object.entries(A1_CHAPTER_UNLOCK_POINTS).map(([idx, pts]) => ({
+        label: `A1 第 ${Number(idx) + 1} 大關`,
+        pts,
+      })),
+      ...Object.entries(LEVEL_UNLOCK_POINTS).map(([lvl, pts]) => ({ label: lvl, pts })),
+    ]
+      .filter((t) => t.pts > points)
+      .sort((a, b) => a.pts - b.pts);
+    const nextUnlock = allThresholds[0] || null;
+
+    return (
+      <div style={{ minHeight: "100vh", background: "#FDF6EC", fontFamily: "'Inter', sans-serif", paddingBottom: "3rem" }}>
+        <TopBar title="打卡日曆" onBack={() => setScreen("map")} />
+
+        <div style={{ padding: "0 1.25rem" }}>
+          <div style={{ display: "flex", gap: "0.6rem", marginBottom: "1.1rem" }}>
+            <div style={{ flex: 1, background: "#FBEFE4", borderRadius: "0.9rem", padding: "0.9rem 0.7rem", textAlign: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.3rem", color: "#B85C2E" }}>
+                <Flame size={16} />
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "1.15rem" }}>{streak}</span>
+              </div>
+              <div style={{ fontSize: "0.65rem", color: "#8A7A5E", marginTop: "0.2rem" }}>連續打卡天數</div>
+            </div>
+            <div style={{ flex: 1, background: "#F6EAD3", borderRadius: "0.9rem", padding: "0.9rem 0.7rem", textAlign: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.3rem", color: "#B98A2E" }}>
+                <Sparkles size={16} />
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "1.15rem" }}>{points}</span>
+              </div>
+              <div style={{ fontSize: "0.65rem", color: "#8A7A5E", marginTop: "0.2rem" }}>目前點數</div>
+            </div>
+          </div>
+
+          <button
+            onClick={handleCheckin}
+            disabled={checkedInToday}
+            style={{
+              width: "100%",
+              padding: "0.9rem",
+              borderRadius: "0.8rem",
+              border: "none",
+              background: checkedInToday ? "#EFE6D0" : "#E07A5F",
+              color: checkedInToday ? "#8A7A5E" : "#FDF6EC",
+              fontWeight: 700,
+              fontSize: "0.9rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.4rem",
+              cursor: checkedInToday ? "default" : "pointer",
+              boxSizing: "border-box",
+              marginBottom: "1.3rem",
+            }}
+          >
+            {checkedInToday ? (
+              <React.Fragment>
+                <Check size={16} /> 今天已經打卡囉!
+              </React.Fragment>
+            ) : (
+              <React.Fragment>
+                <Flame size={16} /> 打卡(+{POINTS_CHECKIN} 點)
+              </React.Fragment>
+            )}
+          </button>
+
+          <div style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: "0.95rem", color: "#3A2E1F", marginBottom: "0.6rem" }}>
+            {monthLabel}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "0.35rem", marginBottom: "0.3rem" }}>
+            {["一", "二", "三", "四", "五", "六", "日"].map((w) => (
+              <div key={w} style={{ textAlign: "center", fontSize: "0.65rem", color: "#A99B85", fontWeight: 600 }}>
+                {w}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "0.35rem", marginBottom: "1.4rem" }}>
+            {cells.map((d, i) => {
+              if (d === null) return <div key={`blank-${i}`} />;
+              const dateStr = `${year}-${pad2(monthIdx0 + 1)}-${pad2(d)}`;
+              const isToday = dateStr === today;
+              const checked = !!checkins[dateStr];
+              return (
+                <div
+                  key={dateStr}
+                  style={{
+                    aspectRatio: "1",
+                    borderRadius: "0.5rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.72rem",
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontWeight: checked || isToday ? 700 : 400,
+                    background: checked ? "#B98A2E" : "#F9F1E6",
+                    color: checked ? "#FDF6EC" : isToday ? "#E07A5F" : "#A99B85",
+                    border: isToday && !checked ? "1.5px solid #E07A5F" : "1.5px solid transparent",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  {d}
+                </div>
+              );
+            })}
+          </div>
+
+          {nextUnlock && (
+            <div style={{ background: "#F9F1E6", borderRadius: "0.9rem", padding: "0.9rem 1rem", fontSize: "0.78rem", color: "#5C4E3A", lineHeight: 1.6 }}>
+              距離解鎖「{nextUnlock.label}」還差 <strong style={{ color: "#B98A2E" }}>{nextUnlock.pts - points} 點</strong>(需要 {nextUnlock.pts} 點)。
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -6302,7 +6705,7 @@ function SpanishVocab() {
             聽力題(聽音辨義)出現時會自動播放一次發音;如果不方便開音效,也可以在關卡開始前勾選「跳過聽力題」——這個設定只在當次測驗有效,不會被記住。
             <br />
             <br />
-            有些關卡完成第 3 天複習後,關卡地圖上會直接多出一個「📘 N-los/las」的複數練習關卡,可以額外練習這批單字的複數形式(教學 + 測驗),這是獨立的加強練習,不影響主要的複習排程。
+            有些關卡完成第 3 天複習後,關卡地圖上會直接多出一個「✨ N-los/las」的複數練習關卡,可以額外練習這批單字的複數形式(教學 + 測驗),這是獨立的加強練習,不影響主要的複習排程。
           </Section>
 
           <Section title="📕 錯題本與錯題關卡">
@@ -6315,8 +6718,21 @@ function SpanishVocab() {
             14 天循環,直到真正記熟為止。
           </Section>
 
+          <Section title="🔥 打卡與點數">
+            點擊地圖上方的「連續 N 天 · 點數」小卡片可以打開打卡日曆,每天手動打卡一次可以拿 {POINTS_CHECKIN}{" "}
+            點;完成一次小關卡測驗(不含錯題複習跟複數形子關卡)也會拿 {POINTS_STAGE_COMPLETE} 點,每次都算、沒有每日上限。
+            <br />
+            <br />
+            連續打卡天數(streak)只要中斷一天就會歸零重新算;如果一整週(週一到週日)七天都有打卡,當週會額外拿到{" "}
+            {POINTS_FULL_WEEK_BONUS} 點全勤獎勵。
+            <br />
+            <br />
+            點數目前用來解鎖 A2 / B1 / B2 分級,以及 A1 分級後面兩個大關(第 401-500 字、第
+            501-503 字)——分級/大關標籤鎖定時會顯示需要的點數,達到門檻後會自動解鎖,不需要手動兌換。「主題」分頁的內容不受點數限制,任何時候都能自由練習。
+          </Section>
+
           <Section title="💾 資料儲存">
-            所有學習進度、複習排程與錯題本,都只儲存在你目前使用的這個瀏覽器裡(localStorage),不會上傳到任何伺服器。
+            所有學習進度、複習排程、錯題本,以及打卡紀錄跟點數,都只儲存在你目前使用的這個瀏覽器裡(localStorage),不會上傳到任何伺服器。
             <br />
             <br />
             換一台裝置、換一個瀏覽器,或清除瀏覽器資料/隱私瀏覽模式,都會讓紀錄消失,請留意;目前版本沒有雲端同步或備份機制。
