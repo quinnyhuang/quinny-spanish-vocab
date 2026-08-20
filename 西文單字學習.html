@@ -146,10 +146,15 @@ const LOCAL_STORAGE_KEY = "esVocabApp.v1";
 // App info / version (shown on the "說明" screen)
 // ---------------------------------------------------------------------------
 const APP_MAKER = "Quinny";
-const APP_VERSION = "v4.8.0";
+const APP_VERSION = "v4.8.1";
 const APP_UPDATED = "2026-08-20";
 // Add a new entry to the TOP of this array whenever you ship a new version.
 const CHANGELOG = [
+  {
+    version: "v4.8.1",
+    date: "2026-08-20",
+    notes: "修正 v4.8.0 的「跳過聽力題」勾選框排版問題:原本排在單字卡片列表最下面,大部分螢幕高度看不到、要滑到底才會出現,容易誤以為功能不見了。改成跟「開始測驗」按鈕一起固定在畫面底部,不用捲動就看得到、隨時可勾選。",
+  },
   {
     version: "v4.8.0",
     date: "2026-08-20",
@@ -5515,7 +5520,7 @@ function SpanishVocab() {
     const stageLockKey = activeStage.kind === "stage" ? activeStage.key : null;
     const lessonLocked = stageLockKey ? isStageLocked(stageLockKey) : false;
     return (
-      <div style={{ minHeight: "100vh", background: "#FDF6EC", fontFamily: "'Inter', sans-serif", paddingBottom: "6rem" }}>
+      <div style={{ minHeight: "100vh", background: "#FDF6EC", fontFamily: "'Inter', sans-serif", paddingBottom: "9.5rem" }}>
         <TopBar title={lessonTitle} onBack={backToMap} />
         {activeStage.kind === "plural" && (
           <div style={{ padding: "0 1.25rem 0.7rem" }}>
@@ -5601,36 +5606,21 @@ function SpanishVocab() {
           ))}
         </div>
 
-        {activeStage.kind !== "plural" && (
-          <div style={{ padding: "0.9rem 1.25rem 0" }}>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                fontSize: "0.8rem",
-                color: "#8A7A5E",
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={skipListening}
-                onChange={(e) => setSkipListening(e.target.checked)}
-              />
-              跳過聽力題(本次測驗有效,不會被記住)
-            </label>
-          </div>
-        )}
-
+        {/* v4.8.1 fix: the skip-listening toggle used to sit in normal page
+            flow AFTER all 10 word cards, so on most screens it was pushed
+            below the fold — invisible unless the user scrolled all the way
+            down past the whole word list, even though the fixed "開始測驗"
+            button right next to it was always on-screen. Moved it into the
+            same fixed footer as the button so it's always visible together,
+            no scrolling required. */}
         <div
           style={{
             position: "fixed",
             bottom: 0,
             left: 0,
             right: 0,
-            padding: "1rem 1.25rem 1.4rem",
-            background: "linear-gradient(to top, #FDF6EC 60%, transparent)",
+            padding: "0.9rem 1.25rem 1.4rem",
+            background: "linear-gradient(to top, #FDF6EC 75%, transparent)",
           }}
         >
           {lessonLocked ? (
@@ -5644,6 +5634,7 @@ function SpanishVocab() {
                 fontWeight: 600,
                 fontSize: "0.85rem",
                 textAlign: "center",
+                boxSizing: "border-box",
               }}
             >
               🔒 今天不是這一關的複習日,{(() => {
@@ -5652,26 +5643,54 @@ function SpanishVocab() {
               })()}
             </div>
           ) : (
-            <button
-              onClick={startQuiz}
-              style={{
-                width: "100%",
-                padding: "0.9rem",
-                borderRadius: "0.8rem",
-                border: "none",
-                background: "#E07A5F",
-                color: "#FDF6EC",
-                fontWeight: 700,
-                fontSize: "0.95rem",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.4rem",
-                cursor: "pointer",
-              }}
-            >
-              <Play size={16} /> {activeStage.kind === "plural" ? "開始複數測驗" : "開始測驗"}
-            </button>
+            <React.Fragment>
+              {activeStage.kind !== "plural" && (
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                    fontSize: "0.8rem",
+                    color: "#8A7A5E",
+                    cursor: "pointer",
+                    marginBottom: "0.6rem",
+                    background: "#F9F1E6",
+                    border: "1px solid #ECDFCA",
+                    borderRadius: "0.6rem",
+                    padding: "0.5rem",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={skipListening}
+                    onChange={(e) => setSkipListening(e.target.checked)}
+                  />
+                  跳過聽力題(本次測驗有效,不會被記住)
+                </label>
+              )}
+              <button
+                onClick={startQuiz}
+                style={{
+                  width: "100%",
+                  padding: "0.9rem",
+                  borderRadius: "0.8rem",
+                  border: "none",
+                  background: "#E07A5F",
+                  color: "#FDF6EC",
+                  fontWeight: 700,
+                  fontSize: "0.95rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.4rem",
+                  cursor: "pointer",
+                  boxSizing: "border-box",
+                }}
+              >
+                <Play size={16} /> {activeStage.kind === "plural" ? "開始複數測驗" : "開始測驗"}
+              </button>
+            </React.Fragment>
           )}
         </div>
 
