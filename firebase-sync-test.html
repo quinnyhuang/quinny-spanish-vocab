@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>雲端同步測試頁面</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif;
+    background: #fdf6ec;
+    color: #3a2e28;
+    padding: 20px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 1.3rem;
+    color: #e07a5f;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    color: #8a7a6d;
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .card h2 {
+    font-size: 1rem;
+    margin: 0 0 10px 0;
+    color: #7d9471;
+  }
+  button {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 8px;
+  }
+  .btn-google {
+    background: #fff;
+    border: 1px solid #ddd;
+    color: #3a2e28;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-primary {
+    background: #e07a5f;
+    color: #fdf6ec;
+  }
+  .btn-secondary {
+    background: #7d9471;
+    color: #fdf6ec;
+  }
+  .btn-danger {
+    background: #eee;
+    color: #a33;
+  }
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .status-box {
+    background: #f5efe4;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    color: #6b5d4f;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 220px;
+    overflow-y: auto;
+    font-family: monospace;
+  }
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .user-info img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+  }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+  .tag-ok { background: #e3ede0; color: #7d9471; }
+  .tag-off { background: #f3e3e0; color: #c0664f; }
+</style>
+</head>
+<body>
+
+<h1>☁️ 雲端同步測試頁面</h1>
+<div class="subtitle">獨立測試模組・確認 Google 登入 + Firebase 存取正常後，才會併入正式 App</div>
+
+<div class="card">
+  <h2>① 設定狀態</h2>
+  <div id="configStatus" class="status-box">尚未檢查設定…</div>
+</div>
+
+<div class="card">
+  <h2>② 登入</h2>
+  <div id="loggedOutView">
+    <button class="btn-google" id="loginBtn">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.5 29.6 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.4-.3-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.5 29.6 4.5 24 4.5c-7.7 0-14.4 4.4-17.7 10.2z"/><path fill="#4CAF50" d="M24 43.5c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.4c-2 1.4-4.6 2.3-7.6 2.3-5.2 0-9.6-3.3-11.3-7.9l-6.6 5.1C9.5 39 16.2 43.5 24 43.5z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.6 5.4C41.6 35.5 43.5 30.2 43.5 24c0-1.2-.1-2.4-.3-3.5z"/></svg>
+      使用 Google 帳號登入
+    </button>
+  </div>
+  <div id="loggedInView" style="display:none;">
+    <div class="user-info">
+      <img id="userPhoto" src="" alt="頭像" />
+      <div>
+        <div id="userName" style="font-weight:600;"></div>
+        <div id="userEmail" style="font-size:0.8rem;color:#8a7a6d;"></div>
+      </div>
+    </div>
+    <button class="btn-danger" id="logoutBtn">登出</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>③ 測試存讀資料</h2>
+  <p style="font-size:0.85rem;color:#8a7a6d;margin-top:0;">
+    模擬存一筆假的學習進度到雲端，再讀回來確認資料一致。
+  </p>
+  <button class="btn-primary" id="saveBtn" disabled>💾 存一筆測試進度到雲端</button>
+  <button class="btn-secondary" id="loadBtn" disabled>📥 從雲端讀回進度</button>
+</div>
+
+<div class="card">
+  <h2>④ 執行紀錄</h2>
+  <div id="log" class="status-box">等待操作…</div>
+</div>
+
+<!-- Firebase SDK（compat 版本，語法較單純，跟一般 <script> 用法接近） -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+
+<script>
+// ============================================================
+// 這一段是「你的 Firebase 專案設定」，需要你從 Firebase Console
+// 複製貼上進來（步驟見對話中的說明）。在填好之前，下面的功能不會動作。
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCTEN83ZD7PE1FWxH7dPwRjbdbE9vtzvBQ",
+  authDomain: "quinny-apps-sync.firebaseapp.com",
+  projectId: "quinny-apps-sync",
+  storageBucket: "quinny-apps-sync.firebasestorage.app",
+  messagingSenderId: "762142769295",
+  appId: "1:762142769295:web:cce2d2e4c82514065df0fa"
+};
+// ============================================================
+
+const logEl = document.getElementById('log');
+const configStatusEl = document.getElementById('configStatus');
+function log(msg) {
+  const time = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+  logEl.textContent = `[${time}] ${msg}\n` + logEl.textContent;
+}
+
+let app, auth, db, currentUser = null;
+
+function isConfigFilled() {
+  return Object.values(firebaseConfig).every(v => v && !v.startsWith('貼上'));
+}
+
+if (!isConfigFilled()) {
+  configStatusEl.textContent = '❌ 尚未填入 Firebase 設定。請依照說明，把 firebaseConfig 幾個欄位換成你自己 Firebase 專案的資料。';
+} else {
+  try {
+    app = firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    db = firebase.firestore();
+    configStatusEl.textContent = '✅ Firebase 設定已載入，專案 ID：' + firebaseConfig.projectId;
+    log('Firebase 初始化成功');
+  } catch (e) {
+    configStatusEl.textContent = '❌ Firebase 初始化失敗：' + e.message;
+    log('初始化錯誤：' + e.message);
+  }
+}
+
+const loginBtn = document.getElementById('loginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const saveBtn = document.getElementById('saveBtn');
+const loadBtn = document.getElementById('loadBtn');
+const loggedOutView = document.getElementById('loggedOutView');
+const loggedInView = document.getElementById('loggedInView');
+
+function updateUI(user) {
+  currentUser = user;
+  if (user) {
+    loggedOutView.style.display = 'none';
+    loggedInView.style.display = 'block';
+    document.getElementById('userPhoto').src = user.photoURL || '';
+    document.getElementById('userName').textContent = user.displayName || '(未命名使用者)';
+    document.getElementById('userEmail').textContent = user.email || '';
+    saveBtn.disabled = false;
+    loadBtn.disabled = false;
+  } else {
+    loggedOutView.style.display = 'block';
+    loggedInView.style.display = 'none';
+    saveBtn.disabled = true;
+    loadBtn.disabled = true;
+  }
+}
+
+if (auth) {
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      log('登入狀態更新：' + user.email);
+    } else {
+      log('目前未登入');
+    }
+    updateUI(user);
+  });
+}
+
+loginBtn?.addEventListener('click', async () => {
+  if (!auth) { log('尚未設定 Firebase，無法登入'); return; }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try {
+    log('嘗試開啟 Google 登入視窗…');
+    const result = await auth.signInWithPopup(provider);
+    log('登入成功：' + result.user.email);
+  } catch (e) {
+    log('登入失敗：' + e.code + ' - ' + e.message);
+  }
+});
+
+logoutBtn?.addEventListener('click', async () => {
+  try {
+    await auth.signOut();
+    log('已登出');
+  } catch (e) {
+    log('登出失敗：' + e.message);
+  }
+});
+
+saveBtn?.addEventListener('click', async () => {
+  if (!currentUser) return;
+  const fakeProgress = {
+    points: Math.floor(Math.random() * 500),
+    streak: Math.floor(Math.random() * 30),
+    lastStage: 'A1-stage-' + Math.floor(Math.random() * 10 + 1),
+    savedAt: new Date().toISOString()
+  };
+  try {
+    log('存檔中…');
+    await db.collection('users').doc(currentUser.uid).set(fakeProgress);
+    log('✅ 存檔成功：' + JSON.stringify(fakeProgress));
+  } catch (e) {
+    log('❌ 存檔失敗：' + e.code + ' - ' + e.message);
+  }
+});
+
+loadBtn?.addEventListener('click', async () => {
+  if (!currentUser) return;
+  try {
+    log('讀取中…');
+    const doc = await db.collection('users').doc(currentUser.uid).get();
+    if (doc.exists) {
+      log('✅ 讀取成功：' + JSON.stringify(doc.data()));
+    } else {
+      log('⚠️ 雲端還沒有這個帳號的資料，請先按「存一筆測試進度」');
+    }
+  } catch (e) {
+    log('❌ 讀取失敗：' + e.code + ' - ' + e.message);
+  }
+});
+</script>
+
+</body>
+</html>
