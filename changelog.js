@@ -2,10 +2,15 @@
 // App info / version (shown on the "說明" screen)
 // ---------------------------------------------------------------------------
 const APP_MAKER = "Quinny";
-const APP_VERSION = "v4.18.0";
+const APP_VERSION = "v4.18.1";
 const APP_UPDATED = "2026-08-27";
 // Add a new entry to the TOP of this array whenever you ship a new version.
 const CHANGELOG = [
+  {
+    version: "v4.18.1",
+    date: "2026-08-27",
+    notes: "微調⑥:v4.18.0 把「主題」分頁 25 個主題全部塞進同一行橫向滑動,測試後發現要滑很長一段才能找到後面的主題。改成每 10 個主題一行、換行排列(第一行主題1-10、第二行11-20、第三行21-25...),每一行各自獨立橫向滑動,不用再滑一長串。",
+  },
   {
     version: "v4.18.0",
     date: "2026-08-27",
