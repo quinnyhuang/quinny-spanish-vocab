@@ -2,10 +2,15 @@
 // App info / version (shown on the "說明" screen)
 // ---------------------------------------------------------------------------
 const APP_MAKER = "Quinny";
-const APP_VERSION = "v4.20.0";
-const APP_UPDATED = "2026-08-27";
+const APP_VERSION = "v4.20.1";
+const APP_UPDATED = "2026-08-31";
 // Add a new entry to the TOP of this array whenever you ship a new version.
 const CHANGELOG = [
+  {
+    version: "v4.20.1",
+    date: "2026-08-31",
+    notes: "全盤資料檢查修正(共87筆+1筆):①35個形容詞(nervioso、viejo、rojo等,含分佈在多個主題裡的重複出現,總計67筆)誤帶了名詞專用的 gender 欄位,導致陰陽性測驗誤把這些形容詞也拿去問「陽性還是陰性」,已全數刪除該欄位;②20個「陰陽同形」職業名詞(periodista、dentista、taxista、astronauta等,含重複出現共40筆)被錯誤標成固定陽性,導致答「la」被系統誤判為錯——這類字文法上就是看指稱的人決定 el/la,沒有固定性別,比照 turista/artista 的既有作法一併刪除 gender 欄位;③agua 補上跟 arma/asma/águila/área 同款的「重音a開頭陰性名詞用el」說明 note。以上皆為資料修正,不涉及任何程式邏輯或介面改動。",
+  },
   {
     version: "v4.20.0",
     date: "2026-08-27",
