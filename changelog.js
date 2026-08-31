@@ -2,10 +2,15 @@
 // App info / version (shown on the "說明" screen)
 // ---------------------------------------------------------------------------
 const APP_MAKER = "Quinny";
-const APP_VERSION = "v4.20.2";
+const APP_VERSION = "v4.20.3";
 const APP_UPDATED = "2026-08-31";
 // Add a new entry to the TOP of this array whenever you ship a new version.
 const CHANGELOG = [
+  {
+    version: "v4.20.3",
+    date: "2026-08-31",
+    notes: "調整 service-worker.js 的快取策略:原本每次開啟都優先向網路重新抓取所有核心檔案(network-first),網路較慢時會拖慢開啟速度;改為 stale-while-revalidate——開啟時先立刻用本地快取顯示畫面,同時在背景默默向網路更新快取,供下一次開啟使用。代價是更新單字庫內容後,使用者要多開一次 App 才會看到最新內容,換來每次開啟速度接近原生 App。CACHE_NAME 同步升版(v1→v2)以清掉舊策略留下的快取。",
+  },
   {
     version: "v4.20.2",
     date: "2026-08-31",
