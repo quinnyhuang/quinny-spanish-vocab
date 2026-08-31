@@ -10,6 +10,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png" />
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="manifest" href="manifest.json" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="西文單字" />
@@ -32,6 +33,19 @@
 <script src="grammar_bank.js"></script>
 <script src="changelog.js"></script>
 <script src="app.js"></script>
+
+<script>
+  // 註冊 service worker：讓 App 有離線能力、也是 TWA 上架的必要條件之一。
+  // 註冊失敗（例如舊瀏覽器不支援）不影響 App 本身正常運作，純網頁模式
+  // 照樣能用，只是少了離線快取跟「可安裝」的能力。
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./service-worker.js").catch((err) => {
+        console.warn("Service worker 註冊失敗:", err);
+      });
+    });
+  }
+</script>
 
 </body>
 </html>
