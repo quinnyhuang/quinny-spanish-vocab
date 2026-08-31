@@ -30,7 +30,7 @@
 //   大搬家）才需要手動改一下版本字串。平常改 word_bank.js 內容本身完全
 //   不用碰這個檔案。
 
-const CACHE_NAME = "xiwen-danci-cache-v2";
+const CACHE_NAME = "xiwen-danci-cache-v3";
 
 // App shell：開啟 App 必須要有的核心檔案，會在安裝階段預先下載存好
 const APP_SHELL = [
@@ -86,6 +86,21 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   // 只處理 GET 請求（例如不要快取到任何未來可能加的 POST API）
   if (event.request.method !== "GET") return;
+
+  // 音檔完全不攔截，交給瀏覽器原生處理：
+  // 1. 音檔播放常用 HTTP Range 請求（分段下載），伺服器對這種請求回傳
+  //    206 Partial Content（只有部分內容）。如果把 206 回應當成完整
+  //    檔案存進快取，下次播放會拿到不完整的音檔資料，聽起來就會變成
+  //    雜音/機械音，而且還要多繞一次網路才發現有問題，造成播放延遲。
+  // 2. 音檔本身也不需要離線快取（離線時看得到單字內容即可，聽不到
+  //    發音不影響核心功能），所以乾脆完全不經過這層快取邏輯。
+  const isRangeRequest = event.request.headers.has("range");
+  const isAudioFile =
+    /\.(mp3|ogg|m4a|wav|aac)(\?|$)/i.test(event.request.url) ||
+    event.request.url.includes("/audio/");
+  if (isRangeRequest || isAudioFile) {
+    return; // 不呼叫 respondWith，瀏覽器會照平常方式直接處理這個請求
+  }
 
   event.respondWith(
     caches.open(CACHE_NAME).then((cache) =>

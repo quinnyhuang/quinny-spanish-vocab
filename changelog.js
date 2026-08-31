@@ -2,10 +2,15 @@
 // App info / version (shown on the "說明" screen)
 // ---------------------------------------------------------------------------
 const APP_MAKER = "Quinny";
-const APP_VERSION = "v4.20.3";
+const APP_VERSION = "v4.20.4";
 const APP_UPDATED = "2026-08-31";
 // Add a new entry to the TOP of this array whenever you ship a new version.
 const CHANGELOG = [
+  {
+    version: "v4.20.4",
+    date: "2026-08-31",
+    notes: "修正 v4.20.3 帶來的音檔播放問題:service worker 原本不分請求類型一律存進快取,導致音檔的 HTTP Range 請求(分段下載)回傳的 206 Partial Content 部分內容被誤存成「完整檔案」,下次播放時拿到不完整資料,聽起來變成雜音/機械音,且要多繞一次網路重新確認才播放,造成延遲。修正後 service worker 完全不攔截音檔請求與帶 Range 標頭的請求,交給瀏覽器原生處理,音檔本身也不快取(離線時看得到單字內容即可,不影響核心功能)。CACHE_NAME 同步升版(v2→v3)清掉先前可能存壞的音檔快取。",
+  },
   {
     version: "v4.20.3",
     date: "2026-08-31",
