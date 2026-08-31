@@ -2,10 +2,15 @@
 // App info / version (shown on the "說明" screen)
 // ---------------------------------------------------------------------------
 const APP_MAKER = "Quinny";
-const APP_VERSION = "v4.20.1";
+const APP_VERSION = "v4.20.2";
 const APP_UPDATED = "2026-08-31";
 // Add a new entry to the TOP of this array whenever you ship a new version.
 const CHANGELOG = [
+  {
+    version: "v4.20.2",
+    date: "2026-08-31",
+    notes: "加入 PWA(Progressive Web App)基礎建設:新增 manifest.json(App 名稱、圖示、啟動網址等安裝資訊)與 service-worker.js(離線快取,平常優先抓網路最新內容,離線時退回本地快取),並在 index.html 加入對應的 manifest 連結與 service worker 註冊。這是之後要用 TWA/bubblewrap 包裝上架 Google Play 的前置條件,也讓網頁版本身多了「可安裝到主畫面、離線也能開啟」的能力。純基礎建設變動,不影響任何現有功能、單字內容或計分邏輯。",
+  },
   {
     version: "v4.20.1",
     date: "2026-08-31",
