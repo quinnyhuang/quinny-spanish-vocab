@@ -136,14 +136,18 @@ const BookOpen = (props) =>
     React.createElement("path", { d: "M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" })
   );
 
-// v4.20.0(改動H1): 每日隨堂測驗入口用的圖示。
-const Target = (props) =>
+// v4.22.0(合併回上個session已上線的配對遊戲功能): 單字配對遊戲入口圖示，
+// 取代原本每日隨堂測驗用的 Target 圖示；Target 已無其他地方使用，一併移除
+// 避免留下死程式碼。
+const Shuffle = (props) =>
   React.createElement(
     Icon,
     props,
-    React.createElement("circle", { cx: 12, cy: 12, r: 10 }),
-    React.createElement("circle", { cx: 12, cy: 12, r: 6 }),
-    React.createElement("circle", { cx: 12, cy: 12, r: 2 })
+    React.createElement("polyline", { points: "16 3 21 3 21 8" }),
+    React.createElement("line", { x1: 4, y1: 20, x2: 21, y2: 3 }),
+    React.createElement("polyline", { points: "21 16 21 21 16 21" }),
+    React.createElement("line", { x1: 15, y1: 15, x2: 21, y2: 21 }),
+    React.createElement("line", { x1: 4, y1: 4, x2: 9, y2: 9 })
   );
 
 // v4.21.0: 圖書館分類 pill 用的 6 個統一風格線條圖示，取代原本的 emoji
@@ -386,12 +390,14 @@ function chunkStages(words) {
 }
 
 // v4.17.0 item⑧⑨: a couple of themes have too few words to split cleanly
-// by the fixed STAGE_SIZE=10 rule — pronombres has 11 words (would become
-// a 10-word stage + a lonely 1-word stage) and meses has exactly 12 (a
-// 10-word stage + a 2-word stage). Both read more naturally as a single
-// stage covering the whole theme. Only theme mode uses this; level banks
-// (A1-B2) always use the regular fixed-size chunking.
-const SINGLE_STAGE_THEMES = ["pronombres", "meses"];
+// by the fixed STAGE_SIZE=10 rule — meses has exactly 12 (a 10-word stage +
+// a 2-word stage), reads more naturally as a single stage covering the
+// whole theme. Only theme mode uses this; level banks (A1-B2) always use
+// the regular fixed-size chunking.
+// v4.22.0: pronombres 移出這個清單——原本只有 11 個字才需要強制單關卡，
+// 但 v4.21.0(改動I之前)已經擴充成 22 張「代名詞+ser/estar」卡，字數夠
+// 多，改用正常的固定 10 字一關切分(10+10+2)更合理，不用再特例處理。
+const SINGLE_STAGE_THEMES = ["meses"];
 
 function chunkStagesForTheme(themeKey, words) {
   if (SINGLE_STAGE_THEMES.includes(themeKey)) {
@@ -583,9 +589,14 @@ function computeStreak(checkins, today) {
 const POINTS_CHECKIN = 10;
 const POINTS_STAGE_COMPLETE = 10;
 const POINTS_FULL_WEEK_BONUS = 50;
-// v4.20.0(改動H1): 每日隨堂測驗完成獎勵，使用者透過 AskUserQuestion 確認
-// 「比小關卡略高，反映混合複習的量」——小關卡是 POINTS_STAGE_COMPLETE(10)。
-const POINTS_DAILY_QUIZ = 15;
+// v4.22.0(合併回配對遊戲): 單字配對遊戲完成獎勵，沿用原本每日隨堂測驗
+// (v4.20.0)的數字與定位——「比小關卡略高，反映混合複習的量」，小關卡是
+// POINTS_STAGE_COMPLETE(10)。配對遊戲取代了每日隨堂測驗在地圖上的入口
+// 位置，所以直接延續同一組數字，不重新調整。
+const POINTS_MATCH_GAME = 15;
+// 每場配對遊戲固定 8 組(16 張卡片)，選擇「固定 8 組」而非像 Duolingo demo
+// 一樣的 5 組，理由是池子夠大時挑戰性更高。
+const MATCH_PAIR_COUNT = 8;
 
 // v4.19.0(改動F): replaces the old "accumulate points, auto-unlock at a
 // cumulative threshold, points never spent" model (A1 ch5/6 + whole A2/B1/B2
@@ -710,23 +721,6 @@ function buildQuestions(words, attemptNumber, fullPool, skipListening) {
   return shuffle(questions);
 }
 
-// v4.20.0(改動H1): 每日隨堂測驗專用的輕量出題器——刻意跟 buildQuestions()
-// 分開,不是共用同一個函式加參數。理由:buildQuestions 是「每字出兩題+陰陽性
-// 額外題」的完整小關卡份量(10字約20+題),每日測驗要的是「15字→15題」的快速
-// 版本,語意跟份量都不一樣,共用會讓 buildQuestions 內部邏輯多長一個特例分支,
-// 不如各自獨立、各自簡單。重用 pickOneType(attemptNumber=1,...) 讓題型自然
-// 落在 zh2es/es2zh/audio2zh 三種輪替(attemptNumber=1 不會出拼寫題,daily quiz
-// 定位是「快速複習」不是「拼寫測驗」)。
-function buildDailyQuizQuestions(words, distractorPool) {
-  return shuffle(
-    words.map((w, wi) => {
-      const type = pickOneType(1, false);
-      const key = `daily-${w.es}-${wi}`;
-      return makeQuestionFor(w, type, key, distractorPool);
-    })
-  );
-}
-
 // v4.8.0 item ⑧: a word is worth teaching a plural form for only if it's a
 // noun that actually carries a `plural` field — nouns the data already marks
 // as "通常不用複數" (rigor, pragmatismo, ...) were authored WITHOUT a plural
@@ -793,6 +787,12 @@ function SpanishVocab() {
   // enter a stage fresh (see enterStage/enterMistakeReview below).
   const [skipListening, setSkipListening] = useState(false);
 
+  // v4.22.0(合併回配對遊戲): 單字配對遊戲的畫面狀態，完全獨立於
+  // quizState(配對是格狀點選 UI，不是線性一題一題作答，共用同一個 state
+  // 形狀沒有意義)。不持久化到 localStorage——中途離開就視同放棄，回地圖
+  // 後 matchState 直接歸 null，下次點入口重新抽一輪新的字。
+  const [matchState, setMatchState] = useState(null);
+
   // -----------------------------------------------------------------------
   // Persisted state: quiz progress, spaced-repetition schedule, mistake book.
   // Stored in this browser's localStorage only (no server/sync) so progress
@@ -836,7 +836,10 @@ function SpanishVocab() {
   // v4.20.0(改動H1): "YYYY-MM-DD" of the last completed daily quiz, or null.
   // Persisted so "once per day" survives a page reload, same pattern as
   // checkins/bonusWeeks below.
-  const [dailyQuizDate, setDailyQuizDate] = useState(savedState.dailyQuizDate || null);
+  // v4.22.0(合併回配對遊戲): 沿用原 dailyQuizDate 的持久化模式，但改記
+  // 「配對遊戲」今天玩過沒有——同樣是「每天限一次、拿一次點數」的入口，
+  // 存進同一個 localStorage 物件。
+  const [matchGameDate, setMatchGameDate] = useState(savedState.matchGameDate || null);
 
   // ---------------------------------------------------------------------
   // v4.20.0(改動H2): 代名詞變化練習模組專用 state。刻意完全獨立於上面的
@@ -856,12 +859,12 @@ function SpanishVocab() {
     try {
       localStorage.setItem(
         LOCAL_STORAGE_KEY,
-        JSON.stringify({ progress, srs, mistakes, checkins, points, bonusWeeks, unlockedChapters, dailyQuizDate })
+        JSON.stringify({ progress, srs, mistakes, checkins, points, bonusWeeks, unlockedChapters, matchGameDate })
       );
     } catch (e) {
       /* localStorage unavailable (private mode / storage full) — progress just won't persist */
     }
-  }, [progress, srs, mistakes, checkins, points, bonusWeeks, unlockedChapters, dailyQuizDate]);
+  }, [progress, srs, mistakes, checkins, points, bonusWeeks, unlockedChapters, matchGameDate]);
 
   // Transient "還差 X 點解鎖" banner shown when tapping a locked level/chapter.
   // Auto-dismisses so it doesn't require an extra tap to clear.
@@ -1101,29 +1104,140 @@ function SpanishVocab() {
     return Array.from(pool.values());
   }, [progress]);
 
-  const DAILY_QUIZ_WORD_COUNT = 15;
-  const dailyQuizReady = learnedWordPool.length >= DAILY_QUIZ_WORD_COUNT;
-  const dailyQuizDoneToday = dailyQuizDate === todayStr();
-
-  const startDailyQuiz = () => {
-    if (!dailyQuizReady || dailyQuizDoneToday) return;
-    const sample = shuffle(learnedWordPool).slice(0, DAILY_QUIZ_WORD_COUNT);
-    const questions = buildDailyQuizQuestions(sample, learnedWordPool);
-    setActiveStage({ key: `daily:${todayStr()}`, words: sample, stageLabel: "每日隨堂測驗", kind: "daily" });
-    setSkipListening(false);
-    setQuizState({
-      questions,
-      qIndex: 0,
-      correct: 0,
-      selectedIndex: null,
-      inputValue: "",
-      showFeedback: false,
-      attemptNumber: 1,
-      wrongEs: [],
-      repeatCounts: {},
+  // v4.22.0(合併回配對遊戲): 「待複習到期的字」——掃過所有分級+主題的
+  // 小關卡，只挑 stageReviewStatus 為 "due"(今天是排定複習日)的關卡，
+  // 把裡面的字收集起來。
+  const dueReviewWordPool = useMemo(() => {
+    const pool = new Map();
+    LEVELS.forEach((l) => {
+      chunkStages(WORD_BANK[l] || []).forEach((s) => {
+        const key = progKeyFor("level", l, s.words);
+        if (stageReviewStatus(srs[key]).state === "due") {
+          s.words.forEach((w) => pool.set(w.es, w));
+        }
+      });
     });
-    setScreen("quiz");
+    THEMES.forEach((t) => {
+      chunkStagesForTheme(t, THEME_BANK[t] || []).forEach((s) => {
+        const key = progKeyFor("theme", t, s.words);
+        if (stageReviewStatus(srs[key]).state === "due") {
+          s.words.forEach((w) => pool.set(w.es, w));
+        }
+      });
+    });
+    return Array.from(pool.values());
+  }, [srs]);
+
+  // 配對遊戲優先字庫 = 錯題本裡的字(答錯過) ∪ 待複習到期的字。這兩批字
+  // 都必然是「已經至少完成過一次測驗」的字(mistakes 只在第14天複習後
+  // 寫入、due 狀態的 srs 紀錄只在第一次完成測驗後建立)，所以一定是
+  // learnedWordPool 的子集，不用另外檢查。
+  const matchWordPool = useMemo(() => {
+    const pool = new Map();
+    mistakeList.forEach((m) => pool.set(m.es, m.word));
+    dueReviewWordPool.forEach((w) => pool.set(w.es, w));
+    return pool;
+  }, [mistakeList, dueReviewWordPool]);
+
+  // 只要「已學過的字」滿 MATCH_PAIR_COUNT 個，遊戲就一定玩得起來——優先
+  // 字庫不夠 8 個時，startMatchGame 會從 learnedWordPool 其餘的字隨機
+  // 補滿(見下方)，所以開放條件看 learnedWordPool 而不是看 matchWordPool
+  // 大小。
+  const matchReady = learnedWordPool.length >= MATCH_PAIR_COUNT;
+  const matchDoneToday = matchGameDate === todayStr();
+
+  const startMatchGame = () => {
+    if (!matchReady || matchDoneToday) return;
+    const priority = shuffle(Array.from(matchWordPool.values()));
+    const filler = shuffle(learnedWordPool.filter((w) => !matchWordPool.has(w.es)));
+    const sample = [...priority, ...filler].slice(0, MATCH_PAIR_COUNT);
+    const pairs = sample.map((w, i) => ({ idx: i, es: w.es, zh: w.zh }));
+    setActiveStage({ key: `match:${todayStr()}`, words: sample, stageLabel: "單字配對", kind: "match" });
+    setMatchState({
+      pairs,
+      leftOrder: shuffle(pairs.map((p) => p.idx)),
+      rightOrder: shuffle(pairs.map((p) => p.idx)),
+      matched: [],
+      selectedLeft: null,
+      selectedRight: null,
+      wrongPair: null,
+      combo: 0,
+      bestCombo: 0,
+      wrongAttempts: 0,
+    });
+    setScreen("match");
   };
+
+  // 點卡片的處理邏輯:左右各選一張，選滿一組就立刻判定。答對:兩張都鎖定
+  // (matched)，連擊+1；答錯:短暫標紅(wrongPair)，連擊歸零，並記一次
+  // wrongAttempts(用來算配對遊戲自己的「正確率」——見 finishMatchGame)。
+  const handleMatchTap = (side, idx) => {
+    setMatchState((prev) => {
+      if (!prev || prev.wrongPair) return prev; // 紅色提示還沒消失前不接受新點擊
+      if (prev.matched.includes(idx)) return prev; // 已鎖定的字不能再選
+
+      const next = { ...prev };
+      if (side === "left") {
+        next.selectedLeft = prev.selectedLeft === idx ? null : idx;
+      } else {
+        next.selectedRight = prev.selectedRight === idx ? null : idx;
+      }
+
+      if (next.selectedLeft != null && next.selectedRight != null) {
+        if (next.selectedLeft === next.selectedRight) {
+          next.matched = [...prev.matched, next.selectedLeft];
+          next.combo = prev.combo + 1;
+          next.bestCombo = Math.max(prev.bestCombo, next.combo);
+          next.selectedLeft = null;
+          next.selectedRight = null;
+        } else {
+          next.wrongPair = { left: next.selectedLeft, right: next.selectedRight };
+          next.combo = 0;
+          next.wrongAttempts = prev.wrongAttempts + 1;
+        }
+      }
+      return next;
+    });
+  };
+
+  // 答錯配對短暫標紅後自動清除(650ms)，讓使用者看得到是哪兩張選錯了，
+  // 之後才能繼續點下一組。
+  useEffect(() => {
+    if (!matchState || !matchState.wrongPair) return;
+    const t = setTimeout(() => {
+      setMatchState((prev) => (prev ? { ...prev, wrongPair: null, selectedLeft: null, selectedRight: null } : prev));
+    }, 650);
+    return () => clearTimeout(t);
+  }, [matchState?.wrongPair]);
+
+  // 8 組全部配對成功 → 結算。刻意不影響 SRS/progress/錯題本(跟原本每日
+  // 隨堂測驗一樣，是純額外練習)，只發一次點數並記錄今天玩過。
+  const finishMatchGame = () => {
+    setMatchState((prev) => {
+      if (!prev) return prev;
+      const totalAttempts = prev.pairs.length + prev.wrongAttempts;
+      const accuracy = Math.round((prev.pairs.length / totalAttempts) * 100);
+      setPoints((p) => p + POINTS_MATCH_GAME);
+      setMatchGameDate(todayStr());
+      setResultData({
+        correct: prev.pairs.length,
+        total: totalAttempts,
+        accuracy,
+        bestCombo: prev.bestCombo,
+        pointsEarned: POINTS_MATCH_GAME,
+      });
+      setScreen("result");
+      return null;
+    });
+  };
+
+  useEffect(() => {
+    if (!matchState) return;
+    if (matchState.pairs.length > 0 && matchState.matched.length === matchState.pairs.length) {
+      finishMatchGame();
+    }
+  }, [matchState?.matched?.length]);
+
 
   const ttsSpeak = (text) => {
     try {
@@ -1269,13 +1383,6 @@ function SpanishVocab() {
         // v4.8.0 item ⑧: the plural sub-stage is a standalone supplementary
         // drill — intentionally outside the SRS/progress/mistake-book
         // system entirely, so there's nothing to persist here.
-      } else if (activeStage.kind === "daily") {
-        // v4.20.0(改動H1): also outside SRS/progress/mistake-book — daily
-        // quiz doesn't advance any stage's review schedule, it's a pure
-        // recall check across already-learned words. Only effect: award
-        // points once, and mark today as done so it can't replay for points.
-        setPoints((p) => p + POINTS_DAILY_QUIZ);
-        setDailyQuizDate(todayStr());
       } else if (activeStage.kind === "mistake") {
         // This session is a scheduled review of words already in the mistake
         // book. Advance each reviewed word's own 2/3/7/14-day cycle. Only the
@@ -1371,12 +1478,7 @@ function SpanishVocab() {
         total,
         accuracy,
         attemptNumber: quizState.attemptNumber,
-        pointsEarned:
-          activeStage.kind === "stage"
-            ? POINTS_STAGE_COMPLETE
-            : activeStage.kind === "daily"
-            ? POINTS_DAILY_QUIZ
-            : 0,
+        pointsEarned: activeStage.kind === "stage" ? POINTS_STAGE_COMPLETE : 0,
       });
       setScreen("result");
     } else {
@@ -1396,6 +1498,7 @@ function SpanishVocab() {
     setQuizState(null);
     setResultData(null);
     setLibraryTopic(null);
+    setMatchState(null);
   };
 
   const replayStage = () => {
@@ -1601,34 +1704,35 @@ function SpanishVocab() {
           </button>
         </div>
 
-        {/* v4.20.0(改動H1): 每日隨堂測驗入口卡片。三種狀態:字數不足(灰
-            色不可點)、今天已完成(灰色不可點,顯示已完成)、可以挑戰(橘色
-            可點)。刻意放在打卡卡片正下方,同一層級的「每日任務」概念。 */}
+        {/* v4.22.0(合併回配對遊戲): 單字配對遊戲入口卡片，取代原本的每日
+            隨堂測驗(同一個位置、同一套「每天限一次」機制)。三種狀態:
+            字數不足(灰色不可點)、今天已完成(灰色不可點,顯示已完成)、
+            可以挑戰(橘色可點)。 */}
         <div style={{ padding: "0 1.5rem 1.1rem" }}>
           <button
-            onClick={startDailyQuiz}
-            disabled={!dailyQuizReady || dailyQuizDoneToday}
+            onClick={startMatchGame}
+            disabled={!matchReady || matchDoneToday}
             style={{
               width: "100%",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               gap: "0.5rem",
-              background: dailyQuizReady && !dailyQuizDoneToday ? "#FBEDE3" : "#F9F1E6",
-              border: `1px solid ${dailyQuizReady && !dailyQuizDoneToday ? "#F0C4A8" : "#ECDFCA"}`,
+              background: matchReady && !matchDoneToday ? "#FBEDE3" : "#F9F1E6",
+              border: `1px solid ${matchReady && !matchDoneToday ? "#F0C4A8" : "#ECDFCA"}`,
               borderRadius: "0.8rem",
               padding: "0.6rem",
-              cursor: dailyQuizReady && !dailyQuizDoneToday ? "pointer" : "default",
-              color: dailyQuizReady && !dailyQuizDoneToday ? "#B85C2E" : "#A99B85",
+              cursor: matchReady && !matchDoneToday ? "pointer" : "default",
+              color: matchReady && !matchDoneToday ? "#B85C2E" : "#A99B85",
             }}
           >
-            <Target size={15} />
+            <Shuffle size={15} />
             <span style={{ fontWeight: 600, fontSize: "0.82rem" }}>
-              {dailyQuizDoneToday
-                ? "✅ 今日隨堂測驗已完成"
-                : dailyQuizReady
-                ? `每日隨堂測驗(${DAILY_QUIZ_WORD_COUNT} 題 · 完成 +${POINTS_DAILY_QUIZ} 點)`
-                : `再學過 ${Math.max(0, DAILY_QUIZ_WORD_COUNT - learnedWordPool.length)} 個字才能挑戰每日測驗`}
+              {matchDoneToday
+                ? "✅ 今日配對遊戲已完成"
+                : matchReady
+                ? `單字配對遊戲(${MATCH_PAIR_COUNT} 組 · 完成 +${POINTS_MATCH_GAME} 點)`
+                : `再學過 ${Math.max(0, MATCH_PAIR_COUNT - learnedWordPool.length)} 個字才能挑戰配對遊戲`}
             </span>
           </button>
         </div>
@@ -2282,7 +2386,7 @@ function SpanishVocab() {
   // ---------------------------------------------------------------------
   if (screen === "lesson" && activeStage) {
     const lessonTitle =
-      activeStage.kind === "mistake" || activeStage.kind === "plural" || activeStage.kind === "daily"
+      activeStage.kind === "mistake" || activeStage.kind === "plural"
         ? activeStage.stageLabel
         : `${info.label} · ${activeStage.stageLabel}`;
     return (
@@ -2545,7 +2649,7 @@ function SpanishVocab() {
     const q = quizState.questions[quizState.qIndex];
     const progressPct = Math.round((quizState.qIndex / quizState.questions.length) * 100);
     const quizTitle =
-      activeStage.kind === "mistake" || activeStage.kind === "plural" || activeStage.kind === "daily"
+      activeStage.kind === "mistake" || activeStage.kind === "plural"
         ? `${activeStage.stageLabel} · 測驗`
         : `${info.label} · 測驗`;
 
@@ -3100,10 +3204,139 @@ function SpanishVocab() {
   }
 
   // ---------------------------------------------------------------------
+  // Screen: MATCH(單字配對遊戲,v4.22.0合併回上個session已上線的功能)
+  // ---------------------------------------------------------------------
+  // 跟 quiz 畫面完全獨立的格線點選 UI,不是線性一題一題作答。左欄顯示中文
+  // 意思、右欄顯示西班牙文,各自獨立打亂排序(leftOrder/rightOrder 在
+  // startMatchGame 時就固定,配對成功後卡片留在原地變綠、不會重新排列)。
+  if (screen === "match" && matchState) {
+    const isWrong = (side, idx) =>
+      !!matchState.wrongPair &&
+      ((side === "left" && matchState.wrongPair.left === idx) || (side === "right" && matchState.wrongPair.right === idx));
+    const isSelected = (side, idx) =>
+      (side === "left" && matchState.selectedLeft === idx) || (side === "right" && matchState.selectedRight === idx);
+    const isMatched = (idx) => matchState.matched.includes(idx);
+
+    const cardStyleFor = (matched, wrong, selected) => {
+      if (matched) return { bg: "#7D9471", border: "#5B7F5A", color: "#FDF6EC" };
+      if (wrong) return { bg: "#C0392B", border: "#96291D", color: "#FDF6EC" };
+      if (selected) return { bg: "#FBEDE3", border: "#E07A5F", color: "#B85C2E" };
+      return { bg: "#F9F1E6", border: "#ECDFCA", color: "#3A2E1F" };
+    };
+
+    const renderCard = (side, idx) => {
+      const pair = matchState.pairs[idx];
+      const matched = isMatched(idx);
+      const wrong = isWrong(side, idx);
+      const selected = isSelected(side, idx);
+      const { bg, border, color } = cardStyleFor(matched, wrong, selected);
+      const cardButton = (
+        <button
+          onClick={() => handleMatchTap(side, idx)}
+          disabled={matched}
+          style={{
+            width: "100%",
+            padding: "0.85rem 0.6rem",
+            borderRadius: "0.75rem",
+            border: `1.5px solid ${border}`,
+            background: bg,
+            color,
+            fontSize: side === "right" ? "0.95rem" : "0.88rem",
+            fontWeight: 600,
+            fontStyle: side === "right" ? "italic" : "normal",
+            fontFamily: side === "right" ? "'Fraunces', serif" : "'Inter', sans-serif",
+            cursor: matched ? "default" : "pointer",
+            opacity: matched ? 0.6 : 1,
+            textAlign: "center",
+            transition: "background 0.15s ease, border-color 0.15s ease",
+          }}
+        >
+          {side === "left" ? pair.zh : pair.es}
+        </button>
+      );
+      // 右欄(西班牙文)比照全站慣例,額外附一顆發音鈕(答題前後都能聽)。
+      if (side === "right") {
+        return (
+          <div key={`right-${idx}`} style={{ display: "flex", gap: "0.35rem", alignItems: "stretch" }}>
+            <div style={{ flex: 1 }}>{cardButton}</div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                speak(pair.es);
+              }}
+              aria-label="播放發音"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "2.3rem",
+                borderRadius: "0.65rem",
+                border: "none",
+                background: "#E9DFC4",
+                color: "#8A7A5E",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              <Volume2 size={14} />
+            </button>
+          </div>
+        );
+      }
+      return <div key={`left-${idx}`}>{cardButton}</div>;
+    };
+
+    return (
+      <div style={{ minHeight: "100vh", background: "#FDF6EC", fontFamily: "'Inter', sans-serif", paddingBottom: "3rem" }}>
+        <TopBar title="單字配對遊戲" onBack={backToMap} />
+        <div style={{ padding: "0 1.25rem" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "#7D9471", fontWeight: 700, fontSize: "0.85rem" }}>
+              <Sparkles size={15} />
+              連擊次數:{matchState.combo}
+            </div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem", color: "#8A7A5E", fontWeight: 600 }}>
+              已配對 {matchState.matched.length} / {matchState.pairs.length}
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              {matchState.leftOrder.map((idx) => renderCard("left", idx))}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              {matchState.rightOrder.map((idx) => renderCard("right", idx))}
+            </div>
+          </div>
+
+          <div style={{ marginTop: "1.2rem", fontSize: "0.75rem", color: "#A99B85", textAlign: "center" }}>
+            左邊選一個中文意思,右邊選對應的西班牙文,配對正確會自動鎖定
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------
   // Screen: RESULT
   // ---------------------------------------------------------------------
   if (screen === "result" && resultData) {
     const tier = masteryTier(resultData.accuracy);
+    // v4.22.0(合併回配對遊戲): 配對遊戲的結算數據跟一般測驗形狀不太一樣
+    // (沒有「第幾次挑戰」這種概念，但多了「最高連擊」)，用同一個結算
+    // 畫面框架，只是中間這排統計數字依 activeStage.kind 換一組內容。
+    const isMatchResult = activeStage?.kind === "match";
+    const statItems = isMatchResult
+      ? [
+          { label: "配對組數", value: `${resultData.correct}/${MATCH_PAIR_COUNT}` },
+          { label: "正確率", value: `${resultData.accuracy}%` },
+          { label: "最高連擊", value: `${resultData.bestCombo ?? 0}` },
+        ]
+      : [
+          { label: "答對", value: `${resultData.correct}/${resultData.total}` },
+          { label: "正確率", value: `${resultData.accuracy}%` },
+          { label: "第幾次挑戰", value: resultData.attemptNumber },
+        ];
     return (
       <div
         style={{
@@ -3138,11 +3371,7 @@ function SpanishVocab() {
           <div style={{ fontSize: "0.9rem", color: tier.color, fontWeight: 700, marginTop: "0.4rem" }}>{tier.label}</div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.6rem", marginTop: "1.4rem" }}>
-            {[
-              { label: "答對", value: `${resultData.correct}/${resultData.total}` },
-              { label: "正確率", value: `${resultData.accuracy}%` },
-              { label: "第幾次挑戰", value: resultData.attemptNumber },
-            ].map((s) => (
+            {statItems.map((s) => (
               <div key={s.label} style={{ background: "#EFE6D0", borderRadius: "0.7rem", padding: "0.7rem 0.4rem" }}>
                 <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "1.05rem", color: "#3A2E1F" }}>
                   {s.value}
@@ -3152,10 +3381,11 @@ function SpanishVocab() {
             ))}
           </div>
 
-          {/* v4.20.0(改動H1): 每日隨堂測驗只能玩一次(當天),沒有「再玩
-              一次」的意義(不會再拿到點數,也沒有對應的教學卡畫面可以重
-              新進入),所以這個按鈕只在非 daily 的情況才顯示。 */}
-          {activeStage?.kind !== "daily" && (
+          {/* v4.22.0(合併回配對遊戲): 配對遊戲(跟原本的每日隨堂測驗一樣)
+              只能玩一次(當天)，沒有「再玩一次」的意義(不會再拿到點數，
+              也沒有對應的教學卡畫面可以重新進入)，所以這個按鈕只在非
+              match 的情況才顯示。 */}
+          {activeStage?.kind !== "match" && (
             <button
               onClick={replayStage}
               style={{
@@ -3180,7 +3410,7 @@ function SpanishVocab() {
           <button
             onClick={backToMap}
             style={{
-              marginTop: activeStage?.kind === "daily" ? "1.6rem" : "0.6rem",
+              marginTop: activeStage?.kind === "match" ? "1.6rem" : "0.6rem",
               width: "100%",
               padding: "0.8rem",
               borderRadius: "0.75rem",
@@ -3265,8 +3495,8 @@ function SpanishVocab() {
             {CHAPTER_UNLOCK_POINTS} 點手動解鎖——點選上鎖的大關標籤會跳出確認畫面,點數夠的話按一下就解鎖,不會不小心手滑花掉。「主題」分頁的內容不受點數限制,任何時候都能自由練習。
             <br />
             <br />
-            地圖上方打卡卡片下面的「每日隨堂測驗」,每天可以挑戰一次,從已經學過的字裡隨機抽 {DAILY_QUIZ_WORD_COUNT}{" "}
-            題(至少要學過 {DAILY_QUIZ_WORD_COUNT} 個字才會開放),完成可以拿 {POINTS_DAILY_QUIZ} 點,不影響任何關卡的複習排程。
+            地圖上方打卡卡片下面的「單字配對遊戲」,每天可以挑戰一次,固定配對 {MATCH_PAIR_COUNT}{" "}
+            組(優先抽錯題本跟今天待複習到期的字,不夠的話從其他已學過的字補滿),左邊中文、右邊西班牙文,點兩邊各一張卡片配對,全部配對成功可以拿 {POINTS_MATCH_GAME} 點,不影響任何關卡的複習排程。
           </Section>
 
           <Section title="📚 圖書館與代名詞變化練習">
