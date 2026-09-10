@@ -227,6 +227,32 @@ const IconConsonant = (props) =>
     React.createElement("path", { d: "M13 14 v-3.5 a1.75 1.75 0 1 1 3.5 0 v3.5" })
   );
 
+// v4.21.0(改動J): 「母音與雙三母音」pill 用的圖示——兩個交疊的圓，代表兩個
+// 母音黏在一起變成一個雙母音的意象。
+const IconVowelPair = (props) =>
+  React.createElement(
+    Icon,
+    props,
+    React.createElement("circle", { cx: 9, cy: 12, r: 6 }),
+    React.createElement("circle", { cx: 15, cy: 12, r: 6 })
+  );
+
+// v4.21.0(改動J): 「音節劃分」pill 用的圖示——三個分開的方塊，代表一個字被
+// 切成好幾個音節的意象。
+const IconSyllableSplit = (props) =>
+  React.createElement(
+    Icon,
+    props,
+    React.createElement("rect", { x: 3, y: 7, width: 4.5, height: 10, rx: 1.3 }),
+    React.createElement("rect", { x: 10, y: 7, width: 4.5, height: 10, rx: 1.3 }),
+    React.createElement("rect", { x: 17, y: 7, width: 4, height: 10, rx: 1.3 })
+  );
+
+// v4.21.0(改動J): 「語調與連音」pill 用的圖示——一條先升、持平、再降的曲線，
+// 直接對應課本裡畫的肯定句語調曲線。
+const IconIntonationCurve = (props) =>
+  React.createElement(Icon, props, React.createElement("path", { d: "M3 16 C 7 6, 17 6, 21 16" }));
+
 // ===========================================================================
 // Config
 // ===========================================================================
@@ -3421,6 +3447,57 @@ function SpanishVocab() {
             ))}
           </div>
         ),
+      },
+      {
+        // v4.21.0(改動J): 「母音與雙三母音」——強弱母音組合、三母音、以及
+        // Hiato 例外，沿用跟 PRONUNCIATION_RULES 一樣的 title/body/examples
+        // 卡片渲染方式(examples 為空陣列時就不顯示「例:」那一行)。
+        key: "vowels",
+        label: "母音與雙三母音",
+        row: 1,
+        Icon: IconVowelPair,
+        content: () =>
+          DIPHTHONG_RULES.map((r, i) => (
+            <div key={i} style={{ marginBottom: i < DIPHTHONG_RULES.length - 1 ? "0.85rem" : 0 }}>
+              <div style={{ fontWeight: 700, color: "#3A2E1F" }}>{r.title}</div>
+              <div>{r.body}</div>
+              {r.examples.length > 0 && (
+                <div style={{ color: "#8A7A5E", fontSize: "0.72rem", marginTop: "0.15rem" }}>例:{r.examples.join("、")}</div>
+              )}
+            </div>
+          )),
+      },
+      {
+        key: "syllables",
+        label: "音節劃分",
+        row: 1,
+        Icon: IconSyllableSplit,
+        content: () =>
+          SYLLABLE_RULES.map((r, i) => (
+            <div key={i} style={{ marginBottom: i < SYLLABLE_RULES.length - 1 ? "0.85rem" : 0 }}>
+              <div style={{ fontWeight: 700, color: "#3A2E1F" }}>{r.title}</div>
+              <div>{r.body}</div>
+              {r.examples.length > 0 && (
+                <div style={{ color: "#8A7A5E", fontSize: "0.72rem", marginTop: "0.15rem" }}>例:{r.examples.join("、")}</div>
+              )}
+            </div>
+          )),
+      },
+      {
+        key: "intonation",
+        label: "語調與連音",
+        row: 1,
+        Icon: IconIntonationCurve,
+        content: () =>
+          INTONATION_RULES.map((r, i) => (
+            <div key={i} style={{ marginBottom: i < INTONATION_RULES.length - 1 ? "0.85rem" : 0 }}>
+              <div style={{ fontWeight: 700, color: "#3A2E1F" }}>{r.title}</div>
+              <div>{r.body}</div>
+              {r.examples.length > 0 && (
+                <div style={{ color: "#8A7A5E", fontSize: "0.72rem", marginTop: "0.15rem" }}>例:{r.examples.join("、")}</div>
+              )}
+            </div>
+          )),
       },
       {
         key: "pronouns",
