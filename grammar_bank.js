@@ -14,31 +14,78 @@
 const SPANISH_ALPHABET = [
   { letter: "A", name: "a", tip: "類似注音「Y」" },
   { letter: "B", name: "be", tip: "類似中文「backslash 波」，比英文 b 輕" },
-  { letter: "C", name: "ce", tip: "接 e/i 唸「思」，接 a/o/u 唸「克」" },
-  { letter: "D", name: "de", tip: "類似「德」" },
+  { letter: "C", name: "ce", tip: "西班牙本土咬舌唸「th」，拉美/南部唸「思」；接 a/o/u 唸「克」" },
+  // v4.21.0(改動I): 補上原本漏掉的 CH、LL——這兩個是西文傳統字母表裡
+  // 「字母(大寫)」欄位就有的獨立字母(西文共 29 個字母)，原本的
+  // SPANISH_ALPHABET 只有 27 筆、跳過了這兩個。
+  { letter: "CH", name: "che", tip: "類似注音「ㄑ」的半氣半音" },
+  { letter: "D", name: "de", tip: "類似「德」；字尾時發輕音甚至不發音" },
   { letter: "E", name: "e", tip: "類似注音「ㄝ」" },
   { letter: "F", name: "efe", tip: "跟英文 f 一樣" },
   { letter: "G", name: "ge", tip: "接 e/i 唸喉音「喝」，接 a/o/u 唸「哥」" },
   { letter: "H", name: "hache", tip: "永遠不發音" },
   { letter: "I", name: "i", tip: "類似注音「一」" },
-  { letter: "J", name: "jota", tip: "永遠唸喉音「喝」" },
+  { letter: "J", name: "jota", tip: "永遠唸喉音「喝」，舌根出力、有振動感" },
   { letter: "K", name: "ka", tip: "跟英文 k 一樣(外來字才用)" },
   { letter: "L", name: "ele", tip: "跟英文 l 一樣" },
+  { letter: "LL", name: "elle", tip: "多數地區發音同 y，類似「耶」(受 Yeísmo 現象影響)" },
   { letter: "M", name: "eme", tip: "跟英文 m 一樣" },
   { letter: "N", name: "ene", tip: "跟英文 n 一樣" },
-  { letter: "Ñ", name: "eñe", tip: "鼻音，類似「妞」" },
+  { letter: "Ñ", name: "eñe", tip: "鼻音，類似「妞」，比 N 鼻音重" },
   { letter: "O", name: "o", tip: "類似注音「ㄛ」" },
   { letter: "P", name: "pe", tip: "類似「波」，比英文 p 輕" },
   { letter: "Q", name: "cu", tip: "只跟 ue/ui 連用，u 不發音，唸「克」" },
   { letter: "R", name: "erre", tip: "字中單一r輕彈舌，字首或rr要打舌顫音" },
-  { letter: "S", name: "ese", tip: "跟英文 s 一樣" },
-  { letter: "T", name: "te", tip: "類似「特」，比英文 t 輕" },
+  { letter: "S", name: "ese", tip: "跟英文 s 一樣，唇齒音" },
+  { letter: "T", name: "te", tip: "類似「特」，比英文 t 輕、不送氣" },
   { letter: "U", name: "u", tip: "類似注音「ㄨ」" },
-  { letter: "V", name: "uve", tip: "多數地區唸法跟 B 很接近" },
+  { letter: "V", name: "uve", tip: "多數地區唸法跟 B 很接近，不咬唇齒" },
   { letter: "W", name: "uve doble", tip: "外來字才用" },
   { letter: "X", name: "equis", tip: "跟英文 x 一樣" },
-  { letter: "Y", name: "ye / i griega", tip: "單獨當「和」用時唸類似「衣」" },
+  { letter: "Y", name: "ye / i griega", tip: "單獨當「和」用時唸類似「衣」；當子音時發音接近 ll" },
   { letter: "Z", name: "zeta", tip: "西班牙本土唸 th，拉美唸「思」" },
+];
+
+// v4.21.0(改動I): 「子音規則」——比 PRONUNCIATION_RULES 更詳細、逐字母的
+// 子音發音規則表，取材自課本「子音」章節(共17條，B到R)。跟 PRONUNCIATION_
+// RULES 的差異：PRONUNCIATION_RULES 是挑重點、給初學者的精簡版；這份是
+// 逐字母查閱用的完整參考表，兩者內容有重疊但用途不同，故意分開放。
+const CONSONANT_RULES = [
+  { letter: "B", body: "屬於雙唇音，依其在單字中所在的位置，會有發音上的些微差異。" },
+  {
+    letter: "C",
+    body: "依其所接續之字母，有不同的發音。ca、co、cu 以及 c+其他子音時唸 [ka]；ce、ci 唸 [ce]，但因地區不同而有差異——西班牙南部、中南美洲習慣發 yes 的 [s]。",
+  },
+  { letter: "CH", body: "類似注音「ㄑ」的半氣半音。" },
+  {
+    letter: "D",
+    body: "依其在單字中的位置而有不同的發音。位於字尾時，發音與 thank you 的 [θ] 以及西文 c+e、i 時的 c 相同。舌尖微突於上下牙齒間，發音時牙齒輕咬，僅將氣送出而不發音。由於此時的 [d] 為氣音，所以在口語化的會話中，甚至不發音。",
+  },
+  { letter: "F", body: "發音與英文 for 的 [f] 相同。" },
+  {
+    letter: "G",
+    body: "依其所接續之字母，有不同的發音。在 a、o、u 以及其他子音前：與英文 go [g] 相同。g+ue、g+ui 時：u 不發音，g 的發音同上；但若為 güe、güi，則 ü 要發音(這種字在西文中較為少見)。在 e、i 之前：[ge]，由舌頭後方施力發音，感覺有口水跟隨舌頭後方振動。",
+  },
+  { letter: "H", body: "在西文中完全不發音。" },
+  { letter: "J", body: "類似英文 hi 的 [h]。由舌頭後方施力，發音時感覺有口水跟隨舌頭後方振動。" },
+  {
+    letter: "K",
+    body: "與英文 key 的 [k] 相同但去除氣音，意即與西文「c+a、o、u、其他子音」時的 c 相同。K 屬於外來字母，因此在西文單字中並不常見，以外來字為主。",
+  },
+  { letter: "L", body: "類似注音 [ㄌ]。當 l 出現在字中或字尾時，把頂在上牙齦的舌尖停頓一會兒，以加強此發音。" },
+  {
+    letter: "LL",
+    body: "代表西文獨特之處的字母之一，其發音也隨著地區的不同而有所差異。主要發音與英文的 [y] 相似。在現代西語中，ll 與 y 在絕大多數地區發音完全相同(受 Yeísmo 語言現象影響)；在南美洲的阿根廷與烏拉圭等地，ll 會發成類似英文 sh 的音。",
+  },
+  { letter: "M", body: "發音與英文 man 的 [m] 相同。" },
+  { letter: "N", body: "發音與英文 no 的 [n] 相同。當 n 在字中時，發音類似英文 sing 的 [ŋ]。" },
+  { letter: "Ñ", body: "也是特別的西文字母之一。發音類似西文 [ni]。Ñ 的鼻音比 N 還重。" },
+  { letter: "P", body: "類似注音 [ㄅ]。" },
+  { letter: "Q", body: "在西文中只接 ue、ui，u 不發音。q 與 c+a、o、u 以及 c+其他子音時發音相同。" },
+  {
+    letter: "R",
+    body: "依其在單字中位置不同而有不同的發音。在字首、rr 以及在 l、n、s 之後：發打舌音，舌尖輕頂上牙齦，發音時吐氣使舌尖連續振動，初學者可含口水、將頭仰上練習。其他情況：r 發捲舌音，舌頭捲起，發音時舌尖輕碰上顎後彈回，自然發音即可，跟打舌的 r 比較起來，這時的 r 發音較短。",
+  },
 ];
 
 const PRONUNCIATION_RULES = [
